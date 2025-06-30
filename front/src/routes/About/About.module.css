@@ -1,0 +1,109 @@
+.container{
+    width: 80vw;
+    margin-left: 10vw;
+}
+
+.history{
+    display: flex;
+    justify-content: space-between;
+}
+.text{
+    width: 50%;
+}
+
+.text p {
+    font-size: 24px;
+    color: #404040;
+    padding-bottom: 15px;
+}
+
+.history img{
+    width: 50%;
+}
+
+.about h1, h2{
+    font-size: 32px;
+    color: #BF4960;
+    font-weight: 800;
+    margin-bottom: 25px;
+    margin-top: 65px;
+}
+
+.mapContainer{
+    width: 100%;
+    height: 700px;
+    background-color: #C4C4C4;
+    padding-top: 45px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.magnifier{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 6vw;
+    height: 14vh;
+    background-color: #f9f9f9;
+    padding-top: 5px;
+    margin-left: 5px;
+}
+
+.magnifier img{
+    padding-top: 10px;
+}
+
+.search_sity{
+    padding-right: 8vw;
+}
+
+.links {
+    font-weight: 800;
+}
+
+.links h3{
+    color: #BF4960;
+    font-size: 28px;
+    padding-bottom: 20px;
+    padding-top: 20px;
+}
+
+.links p a{
+    color: #404040;
+    font-size: 18px;
+}
+
+@media screen and (max-width: 1200px) {
+    .history{
+        display: block;
+    }
+
+    .text{
+        width: 100%;
+    }
+
+    .text p{
+        font-size: 18px;
+    }
+
+    .history img{
+        width: 100%;
+    }
+
+    .links h3{
+        font-size: 20px;
+    }
+    .links p{
+        font-size: 18px;
+    }
+
+    .magnifier img{
+        width: 4vw;
+    }
+}
+
+@media screen and (max-width: 799px){
+    .magnifier{
+        height: 10vh;
+    }
+}

@@ -1,0 +1,20 @@
+.textarea {
+    -webkit-appearance: none;
+    flex-grow: 1;
+    box-sizing: border-box;
+    outline: none;
+    width: 100%;
+    font-size: 16px;
+    font-family: "Montserrat Alternates", sans-serif;
+    line-height: 22px;
+    padding: 10px;
+    border-radius: 10px;
+    color: #404040;
+    border: none;
+    background: transparent;
+    resize: none;
+  }
+
+.textarea::placeholder{
+    color: #BC354F;
+}

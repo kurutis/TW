@@ -1,0 +1,53 @@
+.assortiment{
+    font-size: 24px;
+    color: #BC354F;
+    background-color: transparent;
+    font-family: "Montserrat Alternates", sans-serif;
+    font-weight: 700;
+    border: none;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.assortiment img{
+    width: 24px;
+    margin-right: 10px;
+}
+
+.category_selector {
+    position: relative;
+}
+
+.menu {
+    color: #404040;
+    padding: 0 30px;
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 40vw; 
+    height: 100%;
+    background: #f9f9f9;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    transform: translateX(-100%); 
+    transition: transform 0.3s ease; 
+    z-index: 1000; 
+}
+
+.menu div{
+    font-size: 20px;
+    padding: 10px 0;
+}
+
+.menu.open {
+    transform: translateX(0); 
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); 
+    z-index: 999; 
+}

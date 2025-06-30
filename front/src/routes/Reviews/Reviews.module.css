@@ -1,0 +1,51 @@
+.container{
+    max-width: 80vw;
+    margin-left: 10vw;
+}
+
+.review{
+    width: 100%;
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #BC354F;
+    border-radius: 10px;
+}
+
+.reviews{
+    padding: 0;
+    width: 100%;
+}
+
+.review h3{
+    color: #BC354F;
+    font-weight: 700;
+    font-size: 32px;
+    padding-bottom: 20px;
+}
+
+.inline{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.review p{
+    color: #404040;
+    font-size: 22px;
+    margin-bottom: 20px;
+}
+
+@media screen and (max-width: 1200px){
+    .review h3{
+        font-size: 18px;
+    }
+
+    .review p{
+        font-size: 16px;
+    }
+
+    .inline p {
+        font-size: 16px;
+    }
+    
+}

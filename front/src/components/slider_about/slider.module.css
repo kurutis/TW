@@ -1,0 +1,164 @@
+.carousel {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  height: 60vh;
+  font-family: Arial;
+  position: relative;
+}
+
+.carouselList {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  position: relative;
+  width: 100%;
+  height: 30vh;
+}
+
+.carouselItem {
+  display: flex;
+  width: 400px;
+  height: 565px;
+  border-radius: 12px;
+  position: absolute;
+  transition: .3s;
+}
+
+.carouselItem[data-pos="0"] {
+  z-index: 5;
+}
+.carouselItem[data-pos="-1"],
+.carouselItem[data-pos="1"] {
+  opacity: 0.7;
+  filter: blur(1px) grayscale(10%);
+}
+.carouselItem[data-pos="-1"] {
+  transform: translateX(-45%) scale(0.9);
+  z-index: 4;
+}
+.carouselItem[data-pos="1"] {
+  transform: translateX(45%) scale(0.9);
+  z-index: 4;
+}
+.carouselItem[data-pos="-2"],
+.carouselItem[data-pos="2"] {
+  opacity: 0.4;
+  filter: blur(3px) grayscale(20%);
+}
+.carouselItem[data-pos="-2"] {
+  transform: translateX(-70%) scale(0.8);
+  z-index: 3;
+}
+.carouselItem[data-pos="2"] {
+  transform: translateX(70%) scale(0.8);
+  z-index: 3;
+}
+.carouselItem[data-pos="-3"],
+.carouselItem[data-pos="3"] {
+  opacity: 0.2;
+  filter: blur(2px) grayscale(30%);
+}
+.carouselItem[data-pos="-3"] {
+  transform: translateX(-85%) scale(0.6);
+  z-index: 2;
+}
+.carouselItem[data-pos="3"] {
+  transform: translateX(85%) scale(0.6);
+  z-index: 2;
+}
+
+.btnPrev,
+.btnNext {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  position: absolute; 
+  top: 50%; 
+  transform: translateY(-50%); 
+}
+
+.btnPrev img,
+.btnNext img{
+  width: 30px;
+  height: 65px;
+}
+
+.btnPrev {
+  left: 10px; 
+  z-index: 10; 
+}
+
+.btnNext {
+  right: 10px;
+  z-index: 10; 
+}
+
+.imageOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0; 
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 1s;
+}
+
+.carouselItem:hover .imageOverlay {
+  opacity: 1; 
+}
+
+.icon {
+  width: 50px; 
+  height: 50px; 
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8); 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; 
+}
+
+.modalContent {
+  position: relative;
+}
+
+.modalImage {
+  max-width: 50%;
+  max-height: 50%;
+}
+
+
+@media screen and (max-width: 1200px){
+  .carouselItem[data-pos="-1"] {
+    transform: translateX(-15%) scale(0.9);
+  }
+  .carouselItem[data-pos="1"] {
+    transform: translateX(15%) scale(0.9);
+  }
+  .carouselItem[data-pos="-2"] {
+    transform: translateX(-25%) scale(0.8);
+  }
+  .carouselItem[data-pos="2"] {
+    transform: translateX(25%) scale(0.8);
+  }
+  .carouselItem[data-pos="-3"] {
+    transform: translateX(-35%) scale(0.6);
+  }
+  .carouselItem[data-pos="3"] {
+    transform: translateX(35%) scale(0.6);
+  }
+}

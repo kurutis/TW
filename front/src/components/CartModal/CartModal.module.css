@@ -1,0 +1,78 @@
+.modal {
+    position: fixed; 
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5); 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 1000; 
+}
+
+.modalContent {
+    background-color: #f9f9f9; 
+    border-radius: 8px; 
+    padding: 20px; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); 
+    max-width: 400px;
+    width: 100%;
+}
+
+.cartItem {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 10px 0; 
+    border-bottom: 1px solid #404040; 
+}
+
+.cartItem:last-child {
+    border-bottom: none; 
+}
+
+.close_button {
+    margin-top: 20px;
+    font-family: "Montserrat Alternates", sans-serif;
+    font-size: 18px;
+    color: #f9f9f9;
+    background-color: transparent;
+    border-radius: 8px;
+    border: transparent;
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: border 1s ;
+    background-color: #BC354F;
+}
+
+.close_button:hover {
+    border: 1px solid #792435;
+}
+
+.delete_btn{
+    border: 1px solid #BC354F;
+    background-color: transparent;
+    padding: 5px;
+    border-radius: 5px;
+    color: #BC354F;
+    cursor: pointer;
+}
+
+.modalContent h4{
+    margin-top: 30px;
+}
+
+.btns{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.color{
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+}
