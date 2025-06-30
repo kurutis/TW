@@ -38,7 +38,6 @@ let cacheTimestamp = 0;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 час кэширования
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Применяем CORS middleware
   await runMiddleware(req, res, cors);
 
   // Обрабатываем OPTIONS запрос
@@ -56,16 +55,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Проверяем кэш
     const now = Date.now();
     if (cachedCategories && (now - cacheTimestamp) < CACHE_DURATION) {
-      // Устанавливаем заголовки кэширования
+    
       res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 час на клиенте
       res.setHeader('X-Cache-Status', 'HIT');
       return res.status(200).json(cachedCategories);
     }
 
-    // Получаем категории из базы данных
     const categories = await productService.getCategories();
     
     // Обновляем кэш
@@ -76,13 +73,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 час на клиенте
     res.setHeader('X-Cache-Status', 'MISS');
 
-    // Возвращаем результат
     res.status(200).json(categories);
     
   } catch (error) {
     console.error('Ошибка при получении категорий:', error);
     
-    // Более информативные ошибки в development
     const errorResponse = {
       error: 'Произошла ошибка при загрузке категорий',
       ...(process.env.NODE_ENV === 'development' && {
