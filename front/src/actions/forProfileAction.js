@@ -1,17 +1,15 @@
 import { apiService } from '../services/api';
 
-// Вспомогательная функция для обработки ошибок
 const getErrorMessage = (error) => 
   error.response?.data?.message || error.message || 'Произошла ошибка';
 
-// Чистка ошибок аутентификации
+
 const getAuthError = (error) => {
-  // Приоритеты получения сообщения об ошибке:
-  return error.response?.data?.error?.details?.email?.[0] || // Детализированные ошибки валидации
-         error.response?.data?.error?.message ||             // Стандартное сообщение от API
-         error.response?.data?.message ||                    // Альтернативное поле с сообщением
-         error.message ||                                    // Сообщение из исключения
-         'Произошла неизвестная ошибка';                     // Запасной вариант
+  return error.response?.data?.error?.details?.email?.[0] || 
+         error.response?.data?.error?.message ||             
+         error.response?.data?.message ||                    
+         error.message ||                                    
+         'Произошла неизвестная ошибка';                     
 };
 
 export const clearAuthError = () => ({
@@ -19,23 +17,23 @@ export const clearAuthError = () => ({
 });
 
 const handleAuthResponse = (response) => {
-  // Если ответ полностью отсутствует
+  
   if (!response) {
     throw new Error('Пустой ответ сервера');
   }
 
-  // Проверяем различные варианты расположения данных
+  
   const responseData = response.data || response;
   
-  // Если нет данных вообще
+  
   if (!responseData) {
     throw new Error('Отсутствуют данные в ответе сервера');
   }
 
-  // Проверяем различные варианты токена
+  
   const token = responseData.access_token || responseData.token;
   
-  // Если нет токена, но есть пользователь (например, для /me endpoint)
+  
   if (!token && !responseData.user && !responseData.email) {
     throw new Error('Отсутствуют данные аутентификации в ответе');
   }
