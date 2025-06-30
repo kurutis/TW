@@ -14,11 +14,11 @@ const cors = Cors({
   allowedHeaders: ['Content-Type', 'Authorization'], // Добавьте Authorization
   credentials: true,
   exposedHeaders: ['Set-Cookie'],
-  preflightContinue: false, // Важно для правильной обработки preflight
-  optionsSuccessStatus: 204 // Возвращаем 204 для OPTIONS
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 });
 
-// Вспомогательная функция для запуска middleware
+
 async function runMiddleware(req: NextApiRequest, res: NextApiResponse, fn: Function) {
   return new Promise((resolve, reject) => {
     fn(req, res, (result: any) => {
@@ -35,17 +35,17 @@ const productService = new ProductService(pool);
 // Кэширование категорий на сервере
 let cachedCategories: any = null;
 let cacheTimestamp = 0;
-const CACHE_DURATION = 60 * 60 * 1000; // 1 час кэширования
+const CACHE_DURATION = 60 * 60 * 1000; 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await runMiddleware(req, res, cors);
 
-  // Обрабатываем OPTIONS запрос
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Проверяем метод запроса
+  
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET', 'OPTIONS']);
     return res.status(405).json({ 
@@ -69,8 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     cachedCategories = categories;
     cacheTimestamp = now;
 
-    // Устанавливаем заголовки
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 час на клиенте
+    
+    res.setHeader('Cache-Control', 'public, max-age=3600'); 
     res.setHeader('X-Cache-Status', 'MISS');
 
     res.status(200).json(categories);
