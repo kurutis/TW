@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLoaderData } from 'react-router-dom';
+import { useParams, useNavigate, useLoaderData, useRouteError } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../../reducers/cartSlice';
 import { QuantityModal } from '../../components/QwalentyModal/QwalentyModal';
@@ -10,52 +10,35 @@ import s from './ProductDetail.module.css';
 const normalizeProduct = (product) => {
   if (!product) return null;
   
-  // Обработка изображений
   let images = ['/placeholder.jpg'];
   if (Array.isArray(product.images)) {
     images = product.images
       .filter(img => typeof img === 'string' && img.trim() !== '')
       .map(img => img.startsWith('http') ? img : `/uploads/${img}`);
-  } else if (typeof product.image === 'string') {
-    images = [product.image];
   }
 
-  // Обработка цветов
-  let colors = [];
-  if (Array.isArray(product.colors)) {
-    colors = product.colors.filter(c => typeof c === 'string');
-  }
-
-  // Проверка цены
   const price = parseFloat(product.price) || 0;
   
   return {
-    id: product.id?.toString() || '',
-    name: product.name?.toString() || 'Название не указано',
-    // ... остальные поля
+    ...product,
     price: price.toFixed(2),
     images,
-    colors,
-    hasColors: colors.length > 0
+    hasColors: product.colors?.length > 0
   };
 };
 
 export async function loader({ params }) {
   try {
-    const response = await api.get(`/products/${params.id}`);
+    console.log('Fetching product with ID:', params.id);
+    const product = await apiService.products.getById(params.id);
     
-    if (!response.data) {
+    if (!product) {
       throw new Response('Товар не найден', { status: 404 });
     }
     
-    return response.data;
+    return normalizeProduct(product);
   } catch (error) {
-    console.error('Ошибка загрузки:', error);
-    
-    if (error.response?.status === 404) {
-      throw new Response('Товар не найден', { status: 404 });
-    }
-    
+    console.error('Loader error:', error);
     throw new Response(
       error.message || 'Ошибка сервера',
       { status: error.status || 500 }
@@ -71,6 +54,15 @@ export const ProductDetail = () => {
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   
   const product = normalizeProduct(useLoaderData());
+
+  const handleAddToCart = (quantity) => {
+    dispatch(addToCart({
+      ...product,
+      quantity,
+      selectedColor: product.colors[selectedColorIndex] || ''
+    }));
+    setIsModalOpen(false);
+  };
 
   if (!product) {
     return (
@@ -131,7 +123,12 @@ export const ProductDetail = () => {
           <div className={s.productMeta}>
             {product.brand && <p><strong>Бренд:</strong> {product.brand}</p>}
             {product.series && <p><strong>Серия:</strong> {product.series}</p>}
-            {/* ... остальные поля ... */}
+            {product.season && <p><strong>Сезон:</strong> {product.season}</p>}
+            {product.composition_percent && <p><strong>Состав:</strong> {product.composition_percent}</p>}
+            {product.packQuantity && <p><strong>Количество в упаковке:</strong> {product.packQuantity} шт.</p>}
+            {product.threadLength && <p><strong>Длина нити:</strong> {product.threadLength} м</p>}
+            {product.weight && <p><strong>Вес:</strong> {product.weight} г</p>}
+            {product.category_name && <p><strong>Категория:</strong> {product.category_name}</p>}
           </div>
           
           {product.description && (

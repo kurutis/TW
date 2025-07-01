@@ -11,11 +11,11 @@ const cors = Cors({
     'https://trowool.com'
   ],
   methods: ['GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'], // Добавьте Authorization
+  allowedHeaders: ['Content-Type', 'Authorization'], 
   credentials: true,
   exposedHeaders: ['Set-Cookie'],
-  preflightContinue: false, // Важно для правильной обработки preflight
-  optionsSuccessStatus: 204 // Возвращаем 204 для OPTIONS
+  preflightContinue: false, 
+  optionsSuccessStatus: 204 
 });
 
 // Вспомогательная функция для запуска middleware

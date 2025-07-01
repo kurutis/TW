@@ -5,15 +5,12 @@ import Cors from 'cors';
 
 // Инициализация CORS middleware
 const cors = Cors({
-  origin: [
-    'http://localhost:5173', 
-    'http://localhost:5174',
-    'https://trowool.com' 
-  ],
-  methods: ['GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true, 
-  exposedHeaders: ['Set-Cookie'] 
+  origin: ['http://localhost:5173', 'https://trowool.com'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'], 
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 });
 
 // Вспомогательная функция для запуска middleware

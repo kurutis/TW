@@ -1,16 +1,28 @@
 import { apiService } from '../services/api';
 
+// В actions/product.js
 export const fetchProducts = (categoryId = null) => async (dispatch) => {
   dispatch({ type: 'FETCH_PRODUCTS_REQUEST' });
   
   try {
-    const response = await apiService.products.getAll(categoryId ? { categoryId } : {});
+    const params = categoryId ? { categoryId } : {};
+    console.log('Making API request with params:', params);
+    
+    const response = await apiService.products.getAll(params);
+    console.log('API response:', response);
+    
+    const products = response.data || response;
+    
+    if (!products) {
+      throw new Error('Empty response from server');
+    }
     
     dispatch({
       type: 'FETCH_PRODUCTS_SUCCESS',
-      payload: response
+      payload: Array.isArray(products) ? products : [products]
     });
   } catch (error) {
+    console.error('API error:', error);
     dispatch({
       type: 'FETCH_PRODUCTS_FAILURE',
       payload: error.message

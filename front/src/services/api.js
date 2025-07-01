@@ -1,66 +1,91 @@
 import axios from 'axios';
 
+// Явно задаем базовый URL для API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Вспомогательная функция для форматирования ошибок
+// Улучшенная функция обработки ошибок
 const formatError = (error) => {
   if (error.response) {
     return {
       status: error.response.status,
       data: error.response.data || { error: 'Ошибка сервера' },
-      message: error.response.data?.message || 'Произошла ошибка'
+      message: error.response.data?.message || 'Произошла ошибка',
+      isNetworkError: false
     };
   }
+  
+  if (error.code === 'ECONNABORTED') {
+    return {
+      status: 504,
+      message: 'Таймаут запроса: сервер не ответил вовремя',
+      isNetworkError: true
+    };
+  }
+  
   return {
     status: 500,
-    data: { error: 'Network Error' },
-    message: 'Проблемы с соединением'
+    message: 'Проблемы с соединением',
+    isNetworkError: true
   };
 };
 
-// Функция создания экземпляра API
 const createApiInstance = (config) => {
   const instance = axios.create({
     baseURL: API_URL,
     timeout: config.timeout,
     withCredentials: true,
-    headers: config.headers
+    headers: {
+      'Content-Type': 'application/json',
+      ...config.headers
+    }
   });
 
+  // Логирование запросов
   instance.interceptors.request.use(config => {
-    console.log('Making request to:', config.url);
+    console.log(`[API] ${config.method.toUpperCase()} ${config.url}`);
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
+  }, error => {
+    console.error('[API] Request error:', error);
+    return Promise.reject(error);
   });
 
+  // Логирование ответов
   instance.interceptors.response.use(
-    response => response,
+    response => {
+      console.log(`[API] Response ${response.status} ${response.config.url}`);
+      return response;
+    },
     error => {
+      const formattedError = formatError(error);
+      console.error('[API] Error:', formattedError);
+      
       if (error.response?.status === 401) {
         localStorage.removeItem('authToken');
         window.location.href = '/login';
       }
-      return Promise.reject(formatError(error));
+      
+      return Promise.reject(formattedError);
     }
   );
 
   return instance;
 };
 
-// Создаем экземпляры API
+// Основной экземпляр API
 const api = createApiInstance({
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  timeout: 10000
 });
 
+// Экземпляр для FormData
 const apiFormData = createApiInstance({
   timeout: 15000,
-  headers: {} // Для FormData заголовки устанавливаются автоматически
+  headers: {
+    'Content-Type': 'multipart/form-data'
+  }
 });
 
 // Экспортируемые сервисы
@@ -114,12 +139,25 @@ export const apiService = {
   },
   
   products: {
-    getAll: (params = {}) => api.get('/products', { params }),
-    getById: (id) => api.get(`/products/${id}`),
-    create: (productData) => api.post('/products', productData),
-    update: (id, productData) => api.put(`/products/${id}`, productData),
-    delete: (id) => api.delete(`/products/${id}`)
+  getAll: async (params = {}) => {
+    try {
+      const response = await api.get('/products', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Products getAll error:', error);
+      throw error;
+    }
   },
+  getById: async (id) => {
+    try {
+      const response = await api.get(`/products/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching product ${id}:`, error);
+      throw error;
+    }
+  }
+},
   
   categories: {
     getAll: () => api.get('/categories'),

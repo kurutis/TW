@@ -7,20 +7,10 @@ import s from './ProductList.module.css';
 
 export const ProductList = () => {
   const dispatch = useDispatch();
-  const { 
-    products = [], 
-    selectedCategory, 
-    loading, 
-    error 
-  } = useSelector(state => {
-    const productsData = state.products.products?.data || state.products.products || [];
-    return {
-      products: Array.isArray(productsData) ? productsData : [],
-      selectedCategory: state.products.selectedCategory,
-      loading: state.products.loading,
-      error: state.products.error
-    };
-  });
+  const products = useSelector(state => state.products.products || []);
+  const loading = useSelector(state => state.products.loading);
+  const error = useSelector(state => state.products.error);
+  const selectedCategory = useSelector(state => state.products.selectedCategory);
 
   useEffect(() => {
     dispatch(fetchProducts(selectedCategory));
