@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { addToCart } from '../../reducers/cartSlice';
 import { fetchProducts } from '../../actions/product';
 import s from './ProductList.module.css';
+import basket from '../../assets/basketIcon.svg'
+
 
 export const ProductList = () => {
   const dispatch = useDispatch();
@@ -55,16 +57,19 @@ export const ProductList = () => {
               <p className={s.productComposition}>{product.composition_percent}</p>
               
               <div className={s.productFooter}>
-                <p className={s.productPrice}>
-                  {product.price ? Number(product.price).toFixed(2) : '0.00'} ₽/шт
-                </p>
-                <button 
-                  className={s.addToCartButton}
-                  onClick={(e) => handleAddToCart(e, product)}
-                  aria-label="Добавить в корзину"
-                >
-                  <span>В корзину</span>
-                </button>
+                <div className={s.stroke}>
+                  <p className={s.productPrice}>
+                    {product.price ? Number(product.price).toFixed(2) : '0.00'} ₽/шт
+                  </p>
+
+                    <button 
+                    className={s.stroke}
+                    onClick={(e) => handleAddToCart(e, product)}
+                    aria-label="Добавить в корзину"
+                  >
+                    <img src={basket} alt="" />
+                  </button>
+                </div>
               </div>
             </div>
           </Link>

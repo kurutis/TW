@@ -16,15 +16,15 @@
 }
 
 .info_profile{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     font-weight: 400;
     font-size: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
     margin-bottom: 10px;
 }
 
-.info_profile svg{
+.info_profile img{
     height: 22px;
     width: 20px;
 }
@@ -36,6 +36,12 @@
 .info_profile span{
     font-weight: 700;
     color: #BC354F;
+}
+
+.infoRow{
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .btn_profile{

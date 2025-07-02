@@ -10,21 +10,17 @@ const initialState = {
 
 export const fetchCart = createAsyncThunk(
   'cart/fetchCart',
-  async (_, { getState, rejectWithValue }) => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      return rejectWithValue('Токен не найден');
-    }
-    
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await apiService.cart.get();
-      return response;
+      await apiService.cart.get('/auth/verify');
+      
+      const response = await apiService.cart.get('/cart');
+      return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        window.location.reload();
+        return rejectWithValue('Требуется авторизация');
       }
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Ошибка загрузки корзины');
     }
   }
 );
@@ -43,19 +39,26 @@ export const addToCart = createAsyncThunk(
 
 export const updateCartItem = createAsyncThunk(
   'cart/updateItem',
-  async ({ itemId, quantity }, { rejectWithValue }) => {
+  async ({ itemId, quantity }, { rejectWithValue, getState }) => {
     try {
-      if (quantity > product.stock) {
-        throw new Error(`Максимальное количество: ${product.stock}`);
+      const state = getState();
+      const item = state.cart.items.find(item => item.id === itemId);
+      
+      if (!item) {
+        throw new Error('Товар не найден в корзине');
       }
-      const response = await api.cart.update(itemId, { quantity });
-      return response.data;
+
+      if (quantity > item.stock) {
+        throw new Error(`Максимальное количество: ${item.stock}`);
+      }
+
+      const response = await apiService.cart.update(itemId, { quantity });
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || 'Failed to update item');
     }
   }
 );
-
 export const removeFromCart = createAsyncThunk(
   'cart/removeItem',
   async (itemId, { rejectWithValue }) => {

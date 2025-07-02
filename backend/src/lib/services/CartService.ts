@@ -3,25 +3,28 @@ import { Pool, PoolClient } from 'pg';
 export class CartService {
   constructor(private pool: Pool) {}
 
-  async getCart(userId: number) {
-    const { rows } = await this.pool.query(`
-      SELECT 
-        ci.id,
-        ci.product_id as "productId",
-        p.name,
-        p.price,
-        ci.quantity,
-        ci.color as "selectedColor",
-        p.images,
-        p.stock
-      FROM cart_items ci
-      JOIN products p ON ci.product_id = p.id
-      WHERE ci.user_id = $1
-      ORDER BY ci.created_at DESC
-    `, [userId]);
-    
-    return rows;
-  }
+async getCart(userId: number) {
+  console.log(`Fetching cart for user ${userId}`);
+  
+  const { rows } = await this.pool.query(`
+    SELECT 
+      ci.id,
+      ci.product_id as "productId",
+      p.name,
+      p.price,
+      ci.quantity,
+      ci.color as "selectedColor",
+      p.images,
+      p.stock
+    FROM cart_items ci
+    JOIN products p ON ci.product_id = p.id
+    WHERE ci.user_id = $1
+    ORDER BY ci.created_at DESC
+  `, [userId]);
+  
+  console.log(`Found ${rows.length} items in cart`);
+  return rows;
+}
 
   async addToCart(userId: number, productId: number, color: string, quantity: number = 1) {
     const client = await this.pool.connect();

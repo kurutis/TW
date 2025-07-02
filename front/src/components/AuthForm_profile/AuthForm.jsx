@@ -15,10 +15,19 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
   const { isLoading, error } = useSelector(state => state.forProfile);
 
   useEffect(() => {
-    return () => {
-      dispatch(clearAuthError());
-    };
-  }, [dispatch]);
+  const checkAuth = async () => {
+    try {
+      const userData = await apiService.auth.me();
+      if (userData?.user) {
+        dispatch({ type: 'AUTH_CHECK_SUCCESS', payload: { user: userData.user } });
+      }
+    } catch (error) {
+      console.log('Пользователь не авторизован');
+    }
+  };
+
+  checkAuth();
+}, []);
 
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -65,11 +74,17 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
 };
 
   return (
-    <form className={s.auth_form} onSubmit={handleSubmit}>
+   <div className={s.form_container}>
+    <div>
+      {isLoading ? (
+          <div className={s.h2}></div>
+        ) : (
+          isLoginForm ? <div className={s.h2}>Войти</div> : <div className={s.h2}>Зарегистрироваться</div>
+        )}
+       <form className={s.auth_form} onSubmit={handleSubmit}>
       {error && <div className={s.error}>{error}</div>}
       
       <div className={s.form_group}>
-        <label>Email</label>
         <input
           type="email"
           value={email}
@@ -77,11 +92,11 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
           placeholder="Введите ваш email"
           required
           disabled={isLoading}
+          className={s.form_input}
         />
       </div>
       
       <div className={s.form_group}>
-        <label>Пароль</label>
         <input
           type="password"
           value={password}
@@ -90,13 +105,13 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
           required
           minLength={6}
           disabled={isLoading}
+          className={s.form_input}
         />
       </div>
       
       {!isLoginForm && (
         <>
           <div className={s.form_group}>
-            <label>Имя на сайте (никнейм)</label>
             <input
               type="text"
               value={nickname}
@@ -104,34 +119,35 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
               placeholder="Придумайте никнейм"
               required
               disabled={isLoading}
+              className={s.form_input}
             />
           </div>
           
           <div className={s.form_group}>
-            <label>Полное имя</label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Ваше полное имя"
               disabled={isLoading}
+              className={s.form_input}
             />
           </div>
           
           <div className={s.form_group}>
-            <label>Телефон</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Ваш телефон"
               disabled={isLoading}
+              className={s.form_input}
             />
           </div>
         </>
       )}
       
-      <button type="submit" disabled={isLoading} className={s.submit_button}>
+      <button type="submit" disabled={isLoading} className={s.form_btn}>
         {isLoading ? (
           <div className={s.spinner}></div>
         ) : (
@@ -156,5 +172,7 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
         </span>
       </div>
     </form>
+    </div>
+   </div>
   );
 };

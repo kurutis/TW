@@ -9,6 +9,14 @@
     flex-direction: column;
 }
 
+.h2{
+    font-size: 32px;
+    color: #BF4960;
+    font-weight: 800;
+    margin-bottom: 25px;
+    margin-top: 65px;
+}
+
 .form_input, .form button{
     margin-top: 10px;
     margin-bottom: 10px;
@@ -23,7 +31,7 @@
     border-radius: 10px;
     height: 40px;
     width: 100%;
-    padding-left: 65px;
+    text-align: center;
     background-image: url(../../assets/email-form.svg);
     background-repeat: no-repeat;
     background-position: 5%;
@@ -53,7 +61,17 @@
     border: 1px solid #792435;
 }
 
-.form p{
+.form_group label{
     font-size: 16px;
     cursor: pointer;
+}
+
+.toggle_form{
+    margin-top: 5px;
+}
+
+.toggle_button{
+    background-color: #f9f9f9;
+    border: none;
+    color: #BC354F;
 }

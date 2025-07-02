@@ -9,7 +9,7 @@
     font-family: "Montserrat Alternates", sans-serif;
 }
 
-.review_form textarea{
+.textarea{
     flex-grow: 1;
     padding: 5px;
     border: none;
@@ -21,12 +21,12 @@
     font-family: "Montserrat Alternates", sans-serif;
 }
 
-.review_form textarea::placeholder{
+.textarea::placeholder{
     color: #BC354F;
 }
 
 
-.review_form textarea:focus{
+.textarea:focus{
     outline: none;
 }
 
@@ -42,13 +42,16 @@
     border: 1px solid #BC354F;
     border-radius: 5px;
     font-size: 16px;
-    color: #404040;
+    color: #BC354F;
 }
 
 .review_form select:focus{
     outline: none;
 }
 
+.star{
+    color: #BC354F;
+}
 
 .review_form input[type='file']{
     padding: 5px;

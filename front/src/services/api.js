@@ -1,15 +1,39 @@
 import axios from 'axios';
 
-// Явно задаем базовый URL для API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Улучшенная функция обработки ошибок
-const formatError = (error) => {
+// Создаем основной экземпляр API
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true, // Критически важно для cookie-based аутентификации
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Создаем экземпляр для FormData
+const apiFormData = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'multipart/form-data'
+  }
+});
+
+// Общий обработчик ошибок
+const handleError = (error) => {
   if (error.response) {
+    // Обработка 401 ошибки (неавторизован)
+    if (error.response.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth-required'));
+    }
+    
     return {
       status: error.response.status,
-      data: error.response.data || { error: 'Ошибка сервера' },
-      message: error.response.data?.message || 'Произошла ошибка',
+      data: error.response.data,
+      message: error.response.data?.error || error.response.data?.message || 'Ошибка сервера',
       isNetworkError: false
     };
   }
@@ -17,147 +41,116 @@ const formatError = (error) => {
   if (error.code === 'ECONNABORTED') {
     return {
       status: 504,
-      message: 'Таймаут запроса: сервер не ответил вовремя',
+      message: 'Таймаут запроса',
       isNetworkError: true
     };
   }
   
   return {
     status: 500,
-    message: 'Проблемы с соединением',
+    message: 'Ошибка соединения',
     isNetworkError: true
   };
 };
 
-const createApiInstance = (config) => {
-  const instance = axios.create({
-    baseURL: API_URL,
-    timeout: config.timeout,
-    withCredentials: true,
-    headers: {
-      'Content-Type': 'application/json',
-      ...config.headers
-    }
-  });
-
-  // Логирование запросов
-  instance.interceptors.request.use(config => {
-    console.log(`[API] ${config.method.toUpperCase()} ${config.url}`);
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  }, error => {
-    console.error('[API] Request error:', error);
-    return Promise.reject(error);
-  });
-
-  // Логирование ответов
-  instance.interceptors.response.use(
-    response => {
-      console.log(`[API] Response ${response.status} ${response.config.url}`);
-      return response;
-    },
-    error => {
-      const formattedError = formatError(error);
-      console.error('[API] Error:', formattedError);
-      
-      if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
-      }
-      
-      return Promise.reject(formattedError);
-    }
-  );
-
-  return instance;
-};
-
-// Основной экземпляр API
-const api = createApiInstance({
-  timeout: 10000
-});
-
-// Экземпляр для FormData
-const apiFormData = createApiInstance({
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'multipart/form-data'
+api.interceptors.request.use(config => {
+  // Добавляем токен, если он есть
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  if ( config.url?.startsWith('/orders')) {
+    return api.get('/auth/verify')
+      .then(() => config)
+      .catch(error => {
+        throw error;
+      });
+  }
+  
+  return config;
 });
 
-// Экспортируемые сервисы
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      // Глобальная обработка 401 ошибки
+      window.dispatchEvent(new CustomEvent('auth-required'));
+    }
+    return Promise.reject(error);
+  }
+);
+
+
+
+// Добавляем перехватчики для FormData API
+apiFormData.interceptors.response.use(
+  response => response,
+  error => Promise.reject(handleError(error))
+);
+
 export const apiService = {
   auth: {
+    verifySession: async () => {
+        try {
+          return await api.get('/auth/verify');
+        } catch (error) {
+          throw error;
+        }
+      },
     login: async (credentials) => {
       try {
-        const response = await api.post('/auth/login', {
-          email: credentials.email.trim(),
-          password: credentials.password
-        });
-        
-        if (response.data?.access_token) {
-          localStorage.setItem('authToken', response.data.access_token);
-        }
-        
+        const response = await api.post('/auth/login', credentials);
         return response.data;
       } catch (error) {
-        throw error; // Ошибка уже отформатирована в интерцепторе
+        throw handleError(error);
       }
     },
     register: async (userData) => {
       try {
         const response = await api.post('/auth/register', userData);
-        
-        if (response.data?.access_token) {
-          localStorage.setItem('authToken', response.data.access_token);
-        }
-        
         return response.data;
       } catch (error) {
-        throw error;
+        throw handleError(error);
       }
     },
     logout: async () => {
       try {
         const response = await api.post('/auth/logout');
-        localStorage.removeItem('authToken');
         return response.data;
       } catch (error) {
-        throw error;
+        throw handleError(error);
       }
     },
     me: async () => {
       try {
-        return await api.get('/auth/me');
+        const response = await api.get('/auth/me');
+        return response.data;
       } catch (error) {
-        throw error;
+        throw handleError(error);
       }
     }
   },
   
-  products: {
-  getAll: async (params = {}) => {
-    try {
-      const response = await api.get('/products', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Products getAll error:', error);
-      throw error;
+ products: {
+    getAll: async (params = {}) => {
+      try {
+        const response = await api.get('/products', { params });
+        return response.data;
+      } catch (error) {
+        throw handleError(error);
+      }
+    },
+    getById: async (id) => {
+      try {
+        const response = await api.get(`/products/${id}`);
+        return response.data;
+      } catch (error) {
+        throw handleError(error);
+      }
     }
   },
-  getById: async (id) => {
-    try {
-      const response = await api.get(`/products/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching product ${id}:`, error);
-      throw error;
-    }
-  }
-},
   
   categories: {
     getAll: () => api.get('/categories'),
@@ -166,26 +159,53 @@ export const apiService = {
   
   reviews: {
     getAll: () => api.get('/reviews'),
-    create: (formData) => apiFormData.post('/reviews', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    }),
+    create: (formData) => apiFormData.post('/reviews', formData),
     getByUser: (userId) => api.get(`/reviews/user/${userId}`),
-    update: (id, formData) => apiFormData.put(`/reviews/${id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    }),
+    update: (id, formData) => apiFormData.put(`/reviews/${id}`, formData),
     delete: (id) => api.delete(`/reviews/${id}`)
   },
   
   cart: {
-    get: () => api.get('/cart'),
-    add: (data) => api.post('/cart', data),
-    update: (id, data) => api.put(`/cart/${id}`, data),
-    remove: (id) => api.delete(`/cart/${id}`),
-    clear: () => api.delete('/cart')
+    get: async () => {
+      try {
+        await apiService.auth.verifySession();
+        return await api.get('/cart');
+      } catch (error) {
+        throw error;
+      }
+    },
+    add: async (data) => {
+      try {
+        const response = await api.post('/cart', data);
+        return response.data;
+      } catch (error) {
+        throw handleError(error);
+      }
+    },
+    update: async (id, data) => {
+      try {
+        const response = await api.put(`/cart/${id}`, data);
+        return response.data;
+      } catch (error) {
+        throw handleError(error);
+      }
+    },
+    remove: async (id) => {
+      try {
+        const response = await api.delete(`/cart/${id}`);
+        return response.data;
+      } catch (error) {
+        throw handleError(error);
+      }
+    },
+    clear: async () => {
+      try {
+        const response = await api.delete('/cart');
+        return response.data;
+      } catch (error) {
+        throw handleError(error);
+      }
+    }
   },
   
   orders: {

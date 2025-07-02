@@ -2,6 +2,10 @@ import React, { useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../actions/forProfileAction';
 import s from './User.module.css';
+import emailSvg from '../../assets/email-form.svg'
+import nameSvg from '../../assets/user-regular.svg'
+import phoneSvg from '../../assets/phone-solid.svg'
+import nickSvg from '../../assets/signature-solid.svg'
 
 export const User = ({ user }) => {
   const dispatch = useDispatch();
@@ -15,14 +19,16 @@ export const User = ({ user }) => {
       <h2>Профиль пользователя</h2>
       
       {user ? (
-        <div className={s.profileInfo}>
+        <div className={s.info_profile}>
           <div className={s.infoRow}>
+            <img src={emailSvg} alt="" />
             <span className={s.label}>Email:</span>
             <span className={s.value}>{user.email || 'Не указан'}</span>
           </div>
           
           {user.full_name && (
             <div className={s.infoRow}>
+              <img src={nameSvg} alt="" />
               <span className={s.label}>ФИО:</span>
               <span className={s.value}>{user.full_name}</span>
             </div>
@@ -30,6 +36,7 @@ export const User = ({ user }) => {
           
           {user.phone && (
             <div className={s.infoRow}>
+              <img src={phoneSvg} alt="" />
               <span className={s.label}>Телефон:</span>
               <span className={s.value}>{user.phone}</span>
             </div>
@@ -37,6 +44,7 @@ export const User = ({ user }) => {
           
           {user.nickname && (
             <div className={s.infoRow}>
+              <img src={nickSvg} alt="" />
               <span className={s.label}>Имя на сайте:</span>
               <span className={s.value}>{user.nickname}</span>
             </div>
@@ -48,7 +56,7 @@ export const User = ({ user }) => {
 
       <button 
         onClick={handleLogout}
-        className={s.logoutButton}
+        className={s.btn_profile}
       >
         Выйти
       </button>

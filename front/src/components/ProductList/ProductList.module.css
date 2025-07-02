@@ -22,10 +22,18 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 40px;
+    margin-bottom: 10px;
+    margin-top: 10px;
 }
 
-.stroke h2{
+.productInfo h3{
+    font-size: 24px;
+    margin: 10px;
+}
+
+.productInfo p{
+    height: 100px;
+    padding-top: 10px;
     font-size: 18px;
     color: #828282;
     margin: 0;
@@ -38,6 +46,10 @@
 }
 
 
+.stroke p{
+    color: #BC354F;
+    height: 20px;
+}
 
 .stroke img{
     width: 36px;

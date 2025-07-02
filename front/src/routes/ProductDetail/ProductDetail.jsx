@@ -10,6 +10,7 @@ import s from './ProductDetail.module.css';
 const normalizeProduct = (product) => {
   if (!product) return null;
   
+  // Обработка изображений
   let images = ['/placeholder.jpg'];
   if (Array.isArray(product.images)) {
     images = product.images
@@ -17,34 +18,13 @@ const normalizeProduct = (product) => {
       .map(img => img.startsWith('http') ? img : `/uploads/${img}`);
   }
 
-  const price = parseFloat(product.price) || 0;
-  
   return {
     ...product,
-    price: price.toFixed(2),
+    price: (parseFloat(product.price) || 0).toFixed(2),
     images,
     hasColors: product.colors?.length > 0
   };
 };
-
-export async function loader({ params }) {
-  try {
-    console.log('Fetching product with ID:', params.id);
-    const product = await apiService.products.getById(params.id);
-    
-    if (!product) {
-      throw new Response('Товар не найден', { status: 404 });
-    }
-    
-    return normalizeProduct(product);
-  } catch (error) {
-    console.error('Loader error:', error);
-    throw new Response(
-      error.message || 'Ошибка сервера',
-      { status: error.status || 500 }
-    );
-  }
-}
 
 export const ProductDetail = () => {
   const { id } = useParams();
@@ -52,8 +32,25 @@ export const ProductDetail = () => {
   const dispatch = useDispatch();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
-  
-  const product = normalizeProduct(useLoaderData());
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        setLoading(true);
+        const data = await apiService.products.getById(id);
+        setProduct(normalizeProduct(data));
+      } catch (err) {
+        setError(err.message || 'Не удалось загрузить товар');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProduct();
+  }, [id]);
 
   const handleAddToCart = (quantity) => {
     dispatch(addToCart({
@@ -64,10 +61,14 @@ export const ProductDetail = () => {
     setIsModalOpen(false);
   };
 
-  if (!product) {
+  if (loading) {
+    return <div className={s.container}>Загрузка товара...</div>;
+  }
+
+  if (error || !product) {
     return (
       <div className={s.container}>
-        <p className={s.error}>Товар не найден</p>
+        <p className={s.error}>{error || 'Товар не найден'}</p>
         <button className={s.backButton} onClick={() => navigate(-1)}>
           ← Назад к каталогу
         </button>
@@ -104,7 +105,6 @@ export const ProductDetail = () => {
                     className={`${s.colorSwatch} ${selectedColorIndex === index ? s.active : ''}`}
                     style={{ 
                       backgroundColor: color,
-                      border: color ? 'none' : '1px solid #ccc'
                     }}
                     onClick={() => setSelectedColorIndex(index)}
                     aria-label={`Цвет ${index + 1}`}

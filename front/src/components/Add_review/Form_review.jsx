@@ -9,6 +9,9 @@ import {
   selectReviewError 
 } from '../../reducers/review';
 import { addReview } from '../../actions/review';
+import { AutoResizeTextarea } from '../AutoResazeTextarea/AutoresizeTextarea';
+import paperClip from '../../assets/paperclip.svg';
+import go from '../../assets/go.svg';
 
 export const ReviewForm = () => {
   const dispatch = useDispatch();
@@ -85,7 +88,7 @@ export const ReviewForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className={s.form}>
+    <form onSubmit={handleSubmit} className={s.review_form}>
       {addStatus === 'failed' && error && (
         <div className={s.error}>{error}</div>
       )}
@@ -93,27 +96,7 @@ export const ReviewForm = () => {
       {addStatus === 'succeeded' && (
         <div className={s.success}>Отзыв успешно добавлен!</div>
       )}
-
-      <div className={s.formGroup}>
-        <label htmlFor="rating">Оценка:</label>
-        <select
-          id="rating"
-          name="rating"
-          value={formData.rating}
-          onChange={handleInputChange}
-          disabled={addStatus === 'pending'}
-        >
-          {[1, 2, 3, 4, 5].map(num => (
-            <option key={num} value={num}>
-              {num} {num === 1 ? 'звезда' : 'звёзды'}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={s.formGroup}>
-        <label htmlFor="text">Ваш отзыв:</label>
-        <textarea
+        <AutoResizeTextarea
           id="text"
           name="text"
           value={formData.text}
@@ -121,11 +104,26 @@ export const ReviewForm = () => {
           required
           minLength={10}
           disabled={addStatus === 'pending'}
+          className = {s.textarea}
+          placeholder="Оставьте ваш отзыв!"
         />
-      </div>
-
-      <div className={s.formGroup}>
-        <label htmlFor="images">Изображения (необязательно, максимум 5):</label>
+        <div className={s.else}>
+          <select
+          id="rating"
+          name="rating"
+          value={formData.rating}
+          onChange={handleInputChange}
+          disabled={addStatus === 'pending'}
+        >
+          {[1, 2, 3, 4, 5].map(num => (
+            <option className={s.star} key={num} value={num}>
+              {num} ★
+            </option>
+          ))}
+        </select>
+        <label htmlFor="file-upload" className={s.custom_file_upload}>
+              <img className={s.label_img} src={paperClip} alt="Прикрепить файл" />
+          </label>
         <input
           type="file"
           id="images"
@@ -134,6 +132,7 @@ export const ReviewForm = () => {
           onChange={handleImageChange}
           disabled={addStatus === 'pending'}
           max={5}
+          style={{ display: 'none' }}
         />
         {images.length > 0 && (
           <div className={s.filesInfo}>
@@ -147,15 +146,15 @@ export const ReviewForm = () => {
             </button>
           </div>
         )}
-      </div>
 
       <button 
         type="submit" 
         disabled={addStatus === 'pending'}
         className={s.submitButton}
       >
-        {addStatus === 'pending' ? 'Отправка...' : 'Отправить отзыв'}
+        <img src={go} alt="Отправить" />
       </button>
+        </div>
     </form>
   );
 };

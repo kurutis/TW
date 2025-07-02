@@ -30,6 +30,18 @@
     align-items: center;
 }
 
+.icon_button{
+    border: none;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    color: #BC354F;
+}
+
+.icon_button img{
+    width: 50px;
+    height: 50px;
+}
+
 .icons{
     display: flex;
     text-align: center;

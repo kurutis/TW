@@ -1,17 +1,14 @@
 import { apiService } from '../services/api';
 
-// Вспомогательная функция для обработки ошибок
 const getErrorMessage = (error) => 
   error.response?.data?.message || error.message || 'Произошла ошибка';
 
-// Чистка ошибок аутентификации
 const getAuthError = (error) => {
-  // Приоритеты получения сообщения об ошибке:
-  return error.response?.data?.error?.details?.email?.[0] || // Детализированные ошибки валидации
-         error.response?.data?.error?.message ||             // Стандартное сообщение от API
-         error.response?.data?.message ||                    // Альтернативное поле с сообщением
-         error.message ||                                    // Сообщение из исключения
-         'Произошла неизвестная ошибка';                     // Запасной вариант
+  return error.response?.data?.error?.details?.email?.[0] ||
+         error.response?.data?.error?.message ||
+         error.response?.data?.message ||
+         error.message ||
+         'Произошла неизвестная ошибка';
 };
 
 export const clearAuthError = () => ({
@@ -19,38 +16,31 @@ export const clearAuthError = () => ({
 });
 
 const handleAuthResponse = (response) => {
-  // Если ответ полностью отсутствует
   if (!response) {
     throw new Error('Пустой ответ сервера');
   }
 
-  // Проверяем различные варианты расположения данных
   const responseData = response.data || response;
   
-  // Если нет данных вообще
   if (!responseData) {
-    throw new Error('Отсутствуют данные в ответе сервера');
+    throw new Error('Отсутствуют данные в ответе');
   }
 
-  // Проверяем различные варианты токена
+  // Явная проверка наличия токена
   const token = responseData.access_token || responseData.token;
-  
-  // Если нет токена, но есть пользователь (например, для /me endpoint)
-  if (!token && !responseData.user && !responseData.email) {
-    throw new Error('Отсутствуют данные аутентификации в ответе');
+  if (!token) {
+    throw new Error('Токен не получен от сервера');
   }
 
-  // Если есть токен - сохраняем его
-  if (token) {
-    localStorage.setItem('authToken', token);
-  }
+  localStorage.setItem('authToken', token);
+  console.log('Токен сохранен:', token);
 
   return {
     token,
     user: responseData.user || {
-      email: responseData.email,
       id: responseData.id,
-      ...responseData // включаем все остальные поля
+      email: responseData.email,
+      ...responseData
     }
   };
 };
@@ -59,50 +49,30 @@ export const login = (credentials) => async (dispatch) => {
   dispatch({ type: 'LOGIN_REQUEST' });
 
   try {
-    console.log('Отправка данных:', credentials);
     const response = await apiService.auth.login(credentials);
-    console.log('Ответ сервера:', response);
-
-    const { token, user } = handleAuthResponse(response);
-
-    localStorage.setItem('authToken', token);
     
-    dispatch({
-      type: 'LOGIN_SUCCESS',
-      payload: { user }
-    });
-
-    return { success: true, user };
-
-  } catch (error) {
-    console.error('Полная ошибка:', {
-      error,
-      response: error.response?.data
-    });
-
-    let message = 'Ошибка входа';
-    
-    if (error.response) {
-      // Обработка стандартных ошибок axios
-      const serverError = error.response.data;
-      
-      if (serverError.message) {
-        message = serverError.message;
-      } else if (serverError.error) {
-        message = serverError.error;
-      } else if (error.response.status === 401) {
-        message = 'Неверные учетные данные';
-      }
-    } else if (error.message) {
-      message = error.message;
+    if (!response.user) {
+      throw new Error('Данные пользователя не получены');
     }
 
     dispatch({
-      type: 'LOGIN_FAILURE',
-      payload: message
+      type: 'LOGIN_SUCCESS',
+      payload: { user: response.user }
     });
 
-    return { success: false, error: message };
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || 
+                        error.message || 
+                        'Ошибка входа';
+    
+    dispatch({
+      type: 'LOGIN_FAILURE',
+      payload: errorMessage
+    });
+
+    return { success: false, error: errorMessage };
   }
 };
 

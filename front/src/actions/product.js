@@ -1,6 +1,5 @@
 import { apiService } from '../services/api';
 
-// В actions/product.js
 export const fetchProducts = (categoryId = null) => async (dispatch) => {
   dispatch({ type: 'FETCH_PRODUCTS_REQUEST' });
   

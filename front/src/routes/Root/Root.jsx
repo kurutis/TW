@@ -38,7 +38,7 @@ export const Root = () => {
         isAuthenticated, 
         authChecked, 
         isLoading, 
-        error // Добавляем эту строку
+        error 
     } = useSelector(state => state.forProfile);
     const cartItems = useSelector(state => state.cart?.items || []);
 
@@ -67,7 +67,7 @@ export const Root = () => {
     const handleLogout = async () => {
         try {
             await dispatch(logout());
-            setIsModalOpen(false); // Закрываем модальное окно после выхода
+            setIsModalOpen(false);
         } catch (error) {
             console.error('Logout failed:', error);
         }
@@ -124,6 +124,17 @@ export const Root = () => {
         }
     ];
 
+   const handleCartClick = () => {
+        if (!authChecked) return;
+        
+        if (!isAuthenticated) {
+            setIsModalOpen(true);
+            dispatch(setAuthError('Для работы с корзиной требуется авторизация'));
+        } else {
+            setIsCartOpen(true);
+        }
+    };
+
     if (!authChecked) {
         return <div className={s.loading}>Загрузка...</div>;
     }
@@ -151,9 +162,9 @@ export const Root = () => {
                                     <li className={s.li_cart}>
                                         <span className={s.cart_num}>({cartItems.length})</span>
                                         <button 
-                                            onClick={() => setIsCartOpen(true)} 
+                                            onClick={handleCartClick} 
                                             className={s.icon_button}
-                                        >
+                                            >
                                             <img src={basket} alt="Корзина" />
                                             <p>Корзина</p>
                                         </button>

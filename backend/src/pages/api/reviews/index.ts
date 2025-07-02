@@ -6,6 +6,8 @@ import { NextHandler } from 'next-connect';
 import { handleApiError, handleFileCleanup } from './add';
 import formidable from 'formidable';
 import fs from 'fs/promises';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
 
 type NextMiddleware = (req: NextApiRequest, res: NextApiResponse, next: NextHandler) => void;
 
@@ -52,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
     }
+
 
     const reviewModel = new ReviewModel(pool);
 
