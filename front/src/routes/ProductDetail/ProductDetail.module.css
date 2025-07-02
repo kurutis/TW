@@ -25,28 +25,18 @@
 
 .product{
     display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 40px;
 }
 
-.product img{
-    width: 50%;
-}
-
-.product_info{
-    width: 50%;
-}
-
-.product_info p{
+.productMeta p{
     color: #292929;
     font-size: 16px
 }
 
-.product h2{
-    font-size: 18px;
-    padding: 0;
-    margin: 20px 0;
+.productMeta{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .actions{
@@ -56,9 +46,8 @@
 }
 
 .info_line{
-    width: 50%;
+    margin-top: 20px;
     display: flex;
-    align-items: center;
     justify-content: space-between;
 }
 
@@ -85,6 +74,14 @@
 
 .basket_button img{
     width: 30px;
+}
+
+.h3{
+    margin-top: 10px;
+    color: #BF4960;
+    font-weight: 800;
+    margin-bottom: 10px;
+    font-size: 24px;
 }
 
 .color_btn{

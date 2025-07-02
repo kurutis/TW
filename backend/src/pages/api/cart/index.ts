@@ -1,6 +1,5 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { NextApiResponse } from 'next';
+import { AuthenticatedRequest, authenticate } from '../../../middleware/authMiddleware';
 import pool from '../../../lib/utils/db';
 import { CartService } from '../../../lib/services/CartService';
 import Cors from 'cors';
@@ -15,11 +14,11 @@ const cors = Cors({
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 200 // Для правильной обработки preflight запросов
+  optionsSuccessStatus: 200,
+  exposedHeaders: ['Set-Cookie']
 });
 
-// Функция для запуска middleware
-async function runMiddleware(req: NextApiRequest, res: NextApiResponse, fn: Function) {
+async function runMiddleware(req: AuthenticatedRequest, res: NextApiResponse, fn: Function) {
   return new Promise((resolve, reject) => {
     fn(req, res, (result: any) => {
       if (result instanceof Error) {
@@ -30,7 +29,10 @@ async function runMiddleware(req: NextApiRequest, res: NextApiResponse, fn: Func
   });
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: AuthenticatedRequest,
+  res: NextApiResponse
+) {
   try {
     // Применяем CORS middleware
     await runMiddleware(req, res, cors);
@@ -40,102 +42,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).end();
     }
 
-    // Проверяем авторизацию
-    const session = await getServerSession(req, res, authOptions);
-    if (!session?.user?.id) {
-      console.error('Доступ запрещен: отсутствует сессия');
-      return res.status(401).json({ 
-        error: 'Требуется авторизация',
-        code: 'UNAUTHORIZED'
-      });
-    }
-
-    // Валидация ID пользователя
-    const userId = parseInt(session.user.id);
-    if (isNaN(userId)) {
-      return res.status(400).json({ 
-        error: 'Некорректный ID пользователя',
-        code: 'INVALID_USER_ID'
-      });
-    }
-
-    const cartService = new CartService(pool);
-
-    // Обработка методов
-    switch (req.method) {
-      case 'GET': {
-        const cartItems = await cartService.getCart(userId);
-        return res.status(200).json({
-          success: true,
-          data: cartItems
-        });
+    // Проверка авторизации через middleware
+    const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
+      // Явная проверка наличия пользователя
+      if (!req.user) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
       }
 
-      case 'POST': {
-        const { productId, color, quantity = 1 } = req.body;
-        
-        // Валидация входных данных
-        if (!productId || isNaN(productId)) {
-          return res.status(400).json({ 
-            error: 'Неверный ID товара',
-            code: 'INVALID_PRODUCT_ID'
-          });
-        }
-
-        if (quantity < 1 || quantity > 100) {
-          return res.status(400).json({
-            error: 'Количество должно быть от 1 до 100',
-            code: 'INVALID_QUANTITY'
-          });
-        }
-
-        const item = await cartService.addToCart(userId, productId, color, quantity);
-        return res.status(201).json({
-          success: true,
-          data: item
-        });
-      }
-
-      case 'DELETE': {
-        await cartService.clearCart(userId);
-        return res.status(204).end();
-      }
-
-      default: {
-        res.setHeader('Allow', ['GET', 'POST', 'DELETE', 'OPTIONS']);
-        return res.status(405).json({ 
-          error: 'Метод не поддерживается',
-          code: 'METHOD_NOT_ALLOWED'
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Ошибка API корзины:', error);
-    
-    // Специфичные ошибки
-    if (error instanceof Error) {
-      if (error.message.includes('не найден')) {
-        return res.status(404).json({ 
-          error: error.message,
-          code: 'NOT_FOUND'
-        });
-      }
+      const cartService = new CartService(pool);
       
-      if (error.message.includes('на складе')) {
-        return res.status(409).json({ 
-          error: error.message,
-          code: 'INSUFFICIENT_STOCK'
-        });
+      switch (req.method) {
+        case 'GET': {
+          const cartItems = await cartService.getCart(req.user.userId);
+          res.status(200).json(cartItems);
+          return;
+        }
+        
+        case 'POST': {
+          const { productId, color, quantity = 1 } = req.body;
+          
+          if (!productId || isNaN(Number(productId))) {
+            res.status(400).json({ error: 'Неверный ID товара' });
+            return;
+          }
+          
+          if (quantity < 1 || quantity > 10) {
+            res.status(400).json({ error: 'Количество должно быть от 1 до 10' });
+            return;
+          }
+          
+          const item = await cartService.addToCart(
+            req.user.userId, 
+            productId, 
+            color, 
+            quantity
+          );
+          res.status(201).json(item);
+          return;
+        }
+        
+        case 'DELETE': {
+          await cartService.clearCart(req.user.userId);
+          res.status(204).end();
+          return;
+        }
+        
+        default:
+          res.setHeader('Allow', ['GET', 'POST', 'DELETE', 'OPTIONS']);
+          res.status(405).json({ error: 'Method not allowed' });
+          return;
       }
-    }
+    };
+
+    return authenticate(req, res, handler);
     
-    // Общая ошибка сервера
-    return res.status(500).json({ 
-      error: 'Внутренняя ошибка сервера',
-      code: 'INTERNAL_SERVER_ERROR',
-      ...(process.env.NODE_ENV === 'development' && {
-        details: error instanceof Error ? error.message : 'Неизвестная ошибка'
-      })
+  } catch (error) {
+    console.error('Cart API error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }

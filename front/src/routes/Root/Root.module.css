@@ -154,10 +154,16 @@
     font-weight: 800;
 }
 
-footer{
+.footer{
     padding-top: 20px;
     background-color: #C4C4C4;
     color: #404040;
+}
+
+.footer_content{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .footer_text{
@@ -178,9 +184,8 @@ footer{
     font-size: 16px;
     width: 25vw;
 }
-
-.span{
-    font-size: 12px;
+.copyright{
+     font-size: 12px;
     display: flex;
     align-items: end;
     justify-content: end;

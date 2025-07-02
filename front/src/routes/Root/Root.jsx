@@ -9,6 +9,7 @@ import CartModal from '/src/components/CartModal/CartModal.jsx';
 import { checkAuth, logout, clearAuthError } from '../../actions/forProfileAction';
 import s from './Root.module.css';
 import { setAuthError } from '../../actions/forProfileAction';
+import { fetchCart } from '../../reducers/cartSlice';
 
 // Импорт изображений
 import logo from '../../assets/logo.svg';
@@ -124,21 +125,23 @@ export const Root = () => {
         }
     ];
 
-   const handleCartClick = () => {
-        if (!authChecked) return;
-        
+   const handleCartClick = useCallback(() => {
+  if (isAuthenticated) {
+    setIsCartOpen(true);
+    // Принудительно обновляем корзину при открытии
+    dispatch(fetchCart());
+  } else {
+    setIsModalOpen(true);
+    dispatch(setAuthError('Для работы с корзиной требуется авторизация'));
+  }
+}, [isAuthenticated, dispatch]);
+
+        // Добавляем эффект для закрытия корзины при разлогине
+    useEffect(() => {
         if (!isAuthenticated) {
-            setIsModalOpen(true);
-            dispatch(setAuthError('Для работы с корзиной требуется авторизация'));
-        } else {
-            setIsCartOpen(true);
+            setIsCartOpen(false);
         }
-    };
-
-    if (!authChecked) {
-        return <div className={s.loading}>Загрузка...</div>;
-    }
-
+    }, [isAuthenticated]);
     return (
         <>
             <header className={s.header}>
@@ -269,7 +272,8 @@ export const Root = () => {
                             </h2>
                         </div>
                         
-                        <div className={s.contact}>
+                        <div className={s.footer_text}>
+                            <div className={s.contact}>
                             {contacts.map((section, index) => (
                                 <div key={index}>
                                     <p>{section.title}</p>
@@ -296,6 +300,7 @@ export const Root = () => {
                             <p>108842, Россия, г.Москва, г.Троицк, Фабричная площадь, дом 1</p>
                             <p>ОГРН: 1125003003531</p>
                             <p>ИНН/КПП: 5046075590/775101001</p>
+                        </div>
                         </div>
                     </div>
                     

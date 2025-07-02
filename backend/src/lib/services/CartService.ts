@@ -3,46 +3,59 @@ import { Pool, PoolClient } from 'pg';
 export class CartService {
   constructor(private pool: Pool) {}
 
+  async checkConnection() {
+    try {
+      await this.pool.query('SELECT 1');
+      return true;
+    } catch (error) {
+      console.error('Database connection error:', error);
+      return false;
+    }
+  }
+
 async getCart(userId: number) {
-  console.log(`Fetching cart for user ${userId}`);
-  
-  const { rows } = await this.pool.query(`
-    SELECT 
-      ci.id,
-      ci.product_id as "productId",
-      p.name,
-      p.price,
-      ci.quantity,
-      ci.color as "selectedColor",
-      p.images,
-      p.stock
-    FROM cart_items ci
-    JOIN products p ON ci.product_id = p.id
-    WHERE ci.user_id = $1
-    ORDER BY ci.created_at DESC
-  `, [userId]);
-  
-  console.log(`Found ${rows.length} items in cart`);
-  return rows;
+  const client = await this.pool.connect();
+  try {
+    console.log(`Fetching cart for user ${userId}`);
+    const { rows } = await client.query(`
+      SELECT 
+        ci.id,
+        ci.product_id as "productId",
+        p.name,
+        p.price,
+        ci.quantity,
+        ci.color as "selectedColor",
+        p.images,
+        p.stock
+      FROM cart_items ci
+      JOIN products p ON ci.product_id = p.id
+      WHERE ci.user_id = $1
+      ORDER BY ci.created_at DESC
+    `, [userId]);
+    
+    console.log(`Found ${rows.length} items in cart`);
+    return rows;
+  } catch (error) {
+    console.error('Database error in getCart:', error);
+    throw new Error('Ошибка при получении корзины');
+  } finally {
+    client.release();
+  }
 }
 
-  async addToCart(userId: number, productId: number, color: string, quantity: number = 1) {
+  async addToCart(userId: number, productId: number, color: string, quantity: number) {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       
       // Проверка наличия товара
       const { rows: [product] } = await client.query(
-        `SELECT id, stock FROM products WHERE id = $1 FOR UPDATE`,
-        [productId]
-      );
-      
+      `SELECT id, stock FROM products WHERE id = $1 FOR UPDATE`,
+      [productId]
+    );
+    
       if (!product) {
-        throw new Error('Product not found');
-      }
-      
-      if (product.stock < quantity) {
-        throw new Error('Not enough stock');
+        throw new Error('Товар не найден');
       }
 
       // Проверяем существующий товар в корзине
@@ -98,10 +111,11 @@ async getCart(userId: number) {
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
-    } finally {
-      client.release();
-    }
+    }  finally {
+    client.release();
   }
+}
+
 
   async updateQuantity(userId: number, itemId: number, quantity: number) {
     const client = await this.pool.connect();

@@ -30,7 +30,8 @@ export default function authReducer(state = initialState, action) {
       return {
         ...state,
         user: action.payload.user,
-        isAuthenticated: !!action.payload.user,
+        token: action.payload.token,
+        isAuthenticated: !!action.payload.token,
         isLoading: false,
         authChecked: true,
         error: null
@@ -41,6 +42,7 @@ export default function authReducer(state = initialState, action) {
       return {
         ...state,
         user: null,
+        token: null,
         isAuthenticated: false,
         isLoading: false,
         error: action.payload,

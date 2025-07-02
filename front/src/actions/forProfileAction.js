@@ -26,14 +26,10 @@ const handleAuthResponse = (response) => {
     throw new Error('Отсутствуют данные в ответе');
   }
 
-  // Явная проверка наличия токена
   const token = responseData.access_token || responseData.token;
   if (!token) {
     throw new Error('Токен не получен от сервера');
   }
-
-  localStorage.setItem('authToken', token);
-  console.log('Токен сохранен:', token);
 
   return {
     token,
@@ -51,96 +47,62 @@ export const login = (credentials) => async (dispatch) => {
   try {
     const response = await apiService.auth.login(credentials);
     
-    if (!response.user) {
-      throw new Error('Данные пользователя не получены');
+    if (!response || !response.token) {
+      throw new Error('Invalid server response');
     }
 
     dispatch({
       type: 'LOGIN_SUCCESS',
-      payload: { user: response.user }
+      payload: { 
+        user: response.user,
+        token: response.token
+      }
     });
 
     return { success: true };
 
   } catch (error) {
-    const errorMessage = error.response?.data?.message || 
-                        error.message || 
-                        'Ошибка входа';
-    
-    dispatch({
-      type: 'LOGIN_FAILURE',
-      payload: errorMessage
-    });
-
-    return { success: false, error: errorMessage };
+    const message = error?.data?.error || error.message || 'Login failed';
+    dispatch({ type: 'LOGIN_FAILURE', payload: message });
+    return { success: false, error: message };
   }
 };
 
-// Регистрация пользователя
 export const register = (userData) => async (dispatch) => {
   dispatch({ type: 'REGISTER_REQUEST' });
 
   try {
     const response = await apiService.auth.register(userData);
-    const { token, user } = handleAuthResponse(response);
-
-    localStorage.setItem('authToken', token);
     
+    if (!response || !response.token) {
+      throw new Error('Invalid server response');
+    }
+
     dispatch({
       type: 'REGISTER_SUCCESS',
-      payload: { user }
+      payload: { 
+        user: response.user,
+        token: response.token
+      }
     });
 
     return { success: true };
 
   } catch (error) {
-      console.error('Полная ошибка:', {
-        error,
-        response: error.response?.data
-      });
-
-      let message = 'Ошибка входа';
-      
-      if (error.response) {
-        // Обработка стандартных ошибок axios
-        const serverError = error.response.data;
-        
-        if (serverError.message) {
-          message = serverError.message;
-        } else if (serverError.error) {
-          message = serverError.error;
-        } else if (error.response.status === 401) {
-          message = 'Неверные учетные данные';
-        }
-      } else if (error.message) {
-        message = error.message;
-      }
-
-      dispatch({
-        type: 'LOGIN_FAILURE',
-        payload: message
-      });
-
-      return { success: false, error: message };
-    }
+    const message = error?.data?.error || error.message || 'Registration failed';
+    dispatch({ type: 'REGISTER_FAILURE', payload: message });
+    return { success: false, error: message };
   }
+};
 
 
 // Проверка аутентификации
 export const checkAuth = () => async (dispatch) => {
   dispatch({ type: 'AUTH_CHECK_START' });
   
-  const token = localStorage.getItem('authToken');
-  if (!token) {
-    dispatch({ type: 'AUTH_CHECK_SUCCESS', payload: { user: null } });
-    return { isAuthenticated: false };
-  }
-
   try {
     const response = await apiService.auth.me();
-    
-    // Обрабатываем случай, когда /me возвращает только данные пользователя без обертки
-    const userData = response.data || response;
+    const userData = response.user || response.data || response;
     
     if (!userData) {
       throw new Error('Данные пользователя не получены');
@@ -153,7 +115,6 @@ export const checkAuth = () => async (dispatch) => {
     
     return { isAuthenticated: true, user: userData };
   } catch (error) {
-    localStorage.removeItem('authToken');
     dispatch({
       type: 'AUTH_CHECK_FAILURE',
       payload: getErrorMessage(error)
@@ -171,15 +132,14 @@ export const setAuthError = (error) => ({
 // Выход из системы
 export const logout = () => async (dispatch) => {
   try {
-    // Пытаемся выполнить API-выход, но не блокируем процесс при ошибке
-    await apiService.auth.logout().catch(e => console.log('Logout API error:', e));
+    await apiService.auth.logout();
   } finally {
-    // Всегда очищаем хранилище
     localStorage.removeItem('authToken');
-    sessionStorage.removeItem('user');
     dispatch({ type: 'LOGOUT_SUCCESS' });
+    dispatch({ type: 'cart/resetCart' });
   }
 };
+
 
 // Успешная аутентификация (для сторонних аутентификаций)
 export const authSuccess = (user) => ({
@@ -191,4 +151,12 @@ export const authSuccess = (user) => ({
 export const authFailure = (error) => ({
   type: 'AUTH_FAILURE',
   payload: getErrorMessage(error)
+});
+
+export const showAuthModal = (payload) => ({
+  type: 'SHOW_AUTH_MODAL',
+  payload: {
+    ...payload,
+    callback: payload.callback || null
+  }
 });

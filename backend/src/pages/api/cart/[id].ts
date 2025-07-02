@@ -16,7 +16,8 @@ const cors = Cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
+  exposedHeaders: ['Set-Cookie']
 });
 
 async function runMiddleware(req: NextApiRequest, res: NextApiResponse, fn: Function) {

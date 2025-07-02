@@ -7,7 +7,8 @@ const cors = Cors({
   origin: ['http://localhost:5173', 'https://trowool.com'],
   methods: ['POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Set-Cookie']
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

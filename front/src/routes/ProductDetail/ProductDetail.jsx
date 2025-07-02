@@ -1,47 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLoaderData, useRouteError } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useParams, useNavigate } from 'react-router-dom';
 import { addToCart } from '../../reducers/cartSlice';
+import { selectIsAuthenticated } from '../../actions/authSelectors';
+import { showAuthModal } from '../../actions/modalActions';
 import { QuantityModal } from '../../components/QwalentyModal/QwalentyModal';
-import { apiService } from '../../services/api';
 import s from './ProductDetail.module.css';
+import { apiService } from '../../services/api';
 
-// Улучшенная функция нормализации данных
-const normalizeProduct = (product) => {
-  if (!product) return null;
-  
-  // Обработка изображений
-  let images = ['/placeholder.jpg'];
-  if (Array.isArray(product.images)) {
-    images = product.images
-      .filter(img => typeof img === 'string' && img.trim() !== '')
-      .map(img => img.startsWith('http') ? img : `/uploads/${img}`);
-  }
 
-  return {
-    ...product,
-    price: (parseFloat(product.price) || 0).toFixed(2),
-    images,
-    hasColors: product.colors?.length > 0
-  };
-};
-
-export const ProductDetail = () => {
+const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const isAuthenticated = useSelector(selectIsAuthenticated);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Загрузка данных товара
   useEffect(() => {
     const loadProduct = async () => {
       try {
         setLoading(true);
         const data = await apiService.products.getById(id);
-        setProduct(normalizeProduct(data));
+        setProduct({
+          ...data,
+          price: (parseFloat(data.price) || 0).toFixed(2),
+          images: Array.isArray(data.images) ? data.images : ['/placeholder.jpg']
+        });
       } catch (err) {
         setError(err.message || 'Не удалось загрузить товар');
       } finally {
@@ -52,136 +41,115 @@ export const ProductDetail = () => {
     loadProduct();
   }, [id]);
 
-  const handleAddToCart = (quantity) => {
-    dispatch(addToCart({
-      ...product,
-      quantity,
-      selectedColor: product.colors[selectedColorIndex] || ''
-    }));
-    setIsModalOpen(false);
+  const handleAddToCartClick = () => {
+    if (!isAuthenticated) {
+      dispatch(showAuthModal({
+        message: 'Для добавления товара в корзину требуется авторизация'
+      }));
+      return;
+    }
+    setIsModalOpen(true);
   };
 
-  if (loading) {
-    return <div className={s.container}>Загрузка товара...</div>;
+   const handleAddToCart = async (quantity, selectedColor) => {
+  try {
+    const result = await dispatch(addToCart({
+      productId: product.id,
+      quantity,
+      color: selectedColor,
+    })).unwrap();
+    
+    return result;
+  } catch (error) {
+    if (error?.status === 401) {
+      throw {
+        ...error,
+        message: error.shouldLogout 
+          ? 'Сессия истекла. Пожалуйста, войдите снова'
+          : 'Требуется авторизация'
+      };
+    }
+    throw error;
   }
+};
 
-  if (error || !product) {
-    return (
-      <div className={s.container}>
-        <p className={s.error}>{error || 'Товар не найден'}</p>
-        <button className={s.backButton} onClick={() => navigate(-1)}>
-          ← Назад к каталогу
-        </button>
-      </div>
-    );
-  }
+
+  if (loading) return <div className={s.container}>Загрузка...</div>;
+  if (error) return <div className={s.container}>{error}</div>;
+  if (!product) return <div className={s.container}>Товар не найден</div>;
 
   return (
     <div className={s.container}>
-      <button className={s.backButton} onClick={() => navigate(-1)}>
+      <button className={s.back} onClick={() => navigate(-1)}>
         ← Назад к каталогу
       </button>
       
-      <div className={s.productContainer}>
-        {/* Галерея изображений */}
+      <div className={s.product}>
         <div className={s.productGallery}>
           <img 
-            src={product.images[selectedColorIndex]} 
+            src={product.images[selectedColorIndex] || product.images[0]} 
             alt={product.name} 
             className={s.mainImage}
-            onError={(e) => {
-              e.target.src = '/placeholder.jpg';
-              e.target.classList.add(s.imageError);
-            }}
           />
           
-          {product.hasColors && (
-            <div className={s.colorSelector}>
-              <h3>Доступные цвета:</h3>
-              <div className={s.colorSwatches}>
-                {product.colors.map((color, index) => (
-                  <button
-                    key={index}
-                    className={`${s.colorSwatch} ${selectedColorIndex === index ? s.active : ''}`}
-                    style={{ 
-                      backgroundColor: color,
-                    }}
-                    onClick={() => setSelectedColorIndex(index)}
-                    aria-label={`Цвет ${index + 1}`}
-                    title={color || `Цвет ${index + 1}`}
-                  />
-                ))}
-              </div>
+          {product.colors?.length > 0 && (
+            <div className={s.colors}>
+              {product.colors.map((color, index) => (
+                <button
+                  key={index}
+                  className={`${s.color_btn} ${selectedColorIndex === index ? s.active : ''}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setSelectedColorIndex(index)}
+                />
+              ))}
             </div>
           )}
         </div>
         
-        {/* Детали товара */}
-        <div className={s.productDetails}>
-          <h1 className={s.productTitle}>{product.name}</h1>
-          
+        <div className={s.product_info}>
+           <h1 className={s.product_name}>{product.name}</h1>
           <div className={s.productMeta}>
-            {product.brand && <p><strong>Бренд:</strong> {product.brand}</p>}
-            {product.series && <p><strong>Серия:</strong> {product.series}</p>}
-            {product.season && <p><strong>Сезон:</strong> {product.season}</p>}
-            {product.composition_percent && <p><strong>Состав:</strong> {product.composition_percent}</p>}
-            {product.packQuantity && <p><strong>Количество в упаковке:</strong> {product.packQuantity} шт.</p>}
-            {product.threadLength && <p><strong>Длина нити:</strong> {product.threadLength} м</p>}
-            {product.weight && <p><strong>Вес:</strong> {product.weight} г</p>}
-            {product.category_name && <p><strong>Категория:</strong> {product.category_name}</p>}
-          </div>
+                    <h2 className={s.h3}>Характеристики:</h2>
+                    <p>Бренд: {product.brand}</p>
+                    <p>Сезон: {product.season}</p>
+                    <p>Серия: {product.series}</p>
+                    <p>Состав пряжи: {product.composition_proccent}</p>
+                    <p>В одной упаковке: {product.packQuantity}</p>
+                    <p>Длина нити(м): {product.threadLength}</p>
+                    <p>Вес (г): {product.weight}</p>
+                     {product.description && (
+                    <div className={s.description}>
+                      <h3 className={s.h3}>Описание</h3>
+                      <p>{product.description}</p>
+                    </div>
+                  )}
+              </div>
+          <div className={s.info_line}>
+            <p className={s.price}>{product.price} ₽</p>
           
-          {product.description && (
-            <div className={s.productDescription}>
-              <h3>Описание</h3>
-              <p>{product.description}</p>
-            </div>
-          )}
-          
-          <div className={s.productActions}>
-            <p className={s.productPrice}>{product.price} ₽</p>
             <button 
-              className={s.addToCartButton}
-              onClick={() => setIsModalOpen(true)}
-              aria-label="Добавить в корзину"
+              className={s.basket_button}
+              onClick={handleAddToCartClick}
             >
-              Добавить в корзину
+              В корзину
             </button>
+          
           </div>
         </div>
       </div>
       
-      <QuantityModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleAddToCart}
-        maxQuantity={10}
-        colors={product.colors}
-        selectedColorIndex={selectedColorIndex}
-        onColorSelect={setSelectedColorIndex}
-      />
+      {isModalOpen && (
+        <QuantityModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleAddToCart}
+          colors={product.colors}
+          selectedColorIndex={selectedColorIndex}
+          onColorSelect={setSelectedColorIndex}
+        />
+      )}
     </div>
   );
 };
 
-export function ErrorBoundary() {
-  const error = useRouteError();
-  const navigate = useNavigate();
-  
-  return (
-    <div className={s.container}>
-      <h2 className={s.errorTitle}>Ошибка</h2>
-      <p className={s.errorMessage}>
-        {error.status === 404 
-          ? 'Товар не найден' 
-          : 'Произошла ошибка при загрузке товара'}
-      </p>
-      <button 
-        className={s.backButton} 
-        onClick={() => navigate(-1)}
-      >
-        ← Вернуться назад
-      </button>
-    </div>
-  );
-}
+export default ProductDetail;

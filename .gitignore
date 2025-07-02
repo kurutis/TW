@@ -28,6 +28,8 @@ dist-ssr
 backend/.env.local
 backend/.next
 
+
+
 # Фронтенд
 frontend/.env
 frontend/dist
@@ -35,4 +37,3 @@ frontend/dist
 /public/uploads/*
 !public/uploads/.gitkeep
 
-front/src/assets/Video/video.mp4

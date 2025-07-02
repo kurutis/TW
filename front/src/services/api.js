@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 // Создаем основной экземпляр API
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // Критически важно для cookie-based аутентификации
+  withCredentials: true,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -25,86 +25,57 @@ const apiFormData = axios.create({
 // Общий обработчик ошибок
 const handleError = (error) => {
   if (error.response) {
-    // Обработка 401 ошибки (неавторизован)
-    if (error.response.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth-required'));
-    }
-    
+    // Ошибка от сервера
     return {
       status: error.response.status,
       data: error.response.data,
-      message: error.response.data?.error || error.response.data?.message || 'Ошибка сервера',
+      message: error.response.data?.error || 'Server error',
       isNetworkError: false
     };
-  }
-  
-  if (error.code === 'ECONNABORTED') {
+  } else if (error.request) {
+    // Запрос был сделан, но ответ не получен
     return {
-      status: 504,
-      message: 'Таймаут запроса',
+      status: 503,
+      message: 'Сервер не отвечает',
+      isNetworkError: true
+    };
+  } else {
+    // Ошибка при настройке запроса
+    return {
+      status: 500,
+      message: 'Ошибка при отправке запроса',
       isNetworkError: true
     };
   }
-  
-  return {
-    status: 500,
-    message: 'Ошибка соединения',
-    isNetworkError: true
-  };
 };
 
 api.interceptors.request.use(config => {
-  // Добавляем токен, если он есть
-  const token = localStorage.getItem('authToken');
+  const token = document.cookie.split('; ').find(row => row.startsWith('authToken='))?.split('=')[1];
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
-  if ( config.url?.startsWith('/orders')) {
-    return api.get('/auth/verify')
-      .then(() => config)
-      .catch(error => {
-        throw error;
-      });
-  }
-  
   return config;
 });
 
 api.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      // Глобальная обработка 401 ошибки
-      window.dispatchEvent(new CustomEvent('auth-required'));
+    response => response,
+    error => {
+        if (error.response?.status === 401) {
+            error.message = 'Требуется авторизация';
+        }
+        return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
 );
 
-
-
-// Добавляем перехватчики для FormData API
-apiFormData.interceptors.response.use(
-  response => response,
-  error => Promise.reject(handleError(error))
-);
 
 export const apiService = {
   auth: {
-    verifySession: async () => {
-        try {
-          return await api.get('/auth/verify');
-        } catch (error) {
-          throw error;
-        }
-      },
     login: async (credentials) => {
       try {
         const response = await api.post('/auth/login', credentials);
         return response.data;
       } catch (error) {
-        throw handleError(error);
+        throw error;
       }
     },
     register: async (userData) => {
@@ -112,7 +83,7 @@ export const apiService = {
         const response = await api.post('/auth/register', userData);
         return response.data;
       } catch (error) {
-        throw handleError(error);
+        throw error;
       }
     },
     logout: async () => {
@@ -120,7 +91,7 @@ export const apiService = {
         const response = await api.post('/auth/logout');
         return response.data;
       } catch (error) {
-        throw handleError(error);
+        throw error;
       }
     },
     me: async () => {
@@ -128,7 +99,7 @@ export const apiService = {
         const response = await api.get('/auth/me');
         return response.data;
       } catch (error) {
-        throw handleError(error);
+        throw error;
       }
     }
   },
@@ -168,10 +139,10 @@ export const apiService = {
   cart: {
     get: async () => {
       try {
-        await apiService.auth.verifySession();
-        return await api.get('/cart');
+        const response = await api.get('/cart');
+        return response.data;
       } catch (error) {
-        throw error;
+        throw handleError(error);
       }
     },
     add: async (data) => {

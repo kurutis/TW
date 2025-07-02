@@ -3,20 +3,9 @@ import { createSelector } from '@reduxjs/toolkit';
 const selectAuth = (state) => state.forProfile;
 
 // Базовые селекторы
-export const selectUser = createSelector(
-  [selectAuth],
-  (auth) => auth?.user ?? null
-);
-
-export const selectIsAuthenticated = createSelector(
-  [selectAuth],
-  (auth) => auth?.isAuthenticated ?? false
-);
-
-export const selectAuthChecked = createSelector(
-  [selectAuth],
-  (auth) => auth?.authChecked ?? false
-);
+export const selectUser = (state) => state.forProfile.user;
+export const selectIsAuthenticated = (state) => state.forProfile.isAuthenticated;
+export const selectAuthChecked = (state) => state.forProfile.authChecked;
 
 export const selectIsLoading = createSelector(
   [selectAuth],
@@ -47,3 +36,4 @@ export const selectUserProfile = createSelector(
 
 export const selectAuthError = (state) => state.forProfile.error;
 export const selectAuthLoading = (state) => state.forProfile.isLoading;
+export const selectUserId = (state) => state.forProfile.user?.id;

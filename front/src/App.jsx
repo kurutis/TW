@@ -3,7 +3,7 @@ import { Root } from "./routes/Root/Root";
 import { About, loader as aboutloader } from './routes/About/About';
 import { Reviews } from "./routes/Reviews/Reviews";
 import { Market } from "./routes/Market/Market";
-import { ProductDetail } from "./routes/ProductDetail/ProductDetail";
+import ProductDetail from '/src/routes/ProductDetail/ProductDetail.jsx';
 import { Navigate } from 'react-router-dom';
 
 const router = createBrowserRouter([
