@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import Cors from 'cors';
 import { AuthService } from '../../../lib/utils/auth';
 
-// Инициализация CORS один раз (не на каждый запрос)
+// Инициализация CORS один раз
 const cors = Cors({
   origin: ['http://localhost:5173'],
   methods: ['GET', 'OPTIONS'],
@@ -11,7 +11,7 @@ const cors = Cors({
   exposedHeaders: ['Set-Cookie']
 });
 
-// Вынесем middleware в отдельную константу
+
 const runMiddleware = (req: NextApiRequest, res: NextApiResponse, fn: Function) => {
   return new Promise((resolve, reject) => {
     fn(req, res, (result: any) => {
@@ -21,7 +21,7 @@ const runMiddleware = (req: NextApiRequest, res: NextApiResponse, fn: Function) 
   });
 };
 
-// Добавим лимит времени выполнения
+
 const API_TIMEOUT = 5000; // 5 секунд
 
 export default async function handler(

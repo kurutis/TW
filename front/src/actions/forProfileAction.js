@@ -3,12 +3,13 @@ import { apiService } from '../services/api';
 const getErrorMessage = (error) => 
   error.response?.data?.message || error.message || 'Произошла ошибка';
 
+
 const getAuthError = (error) => {
-  return error.response?.data?.error?.details?.email?.[0] ||
-         error.response?.data?.error?.message ||
-         error.response?.data?.message ||
-         error.message ||
-         'Произошла неизвестная ошибка';
+  return error.response?.data?.error?.details?.email?.[0] || 
+         error.response?.data?.error?.message ||             
+         error.response?.data?.message ||                    
+         error.message ||                                    
+         'Произошла неизвестная ошибка';                     
 };
 
 export const clearAuthError = () => ({

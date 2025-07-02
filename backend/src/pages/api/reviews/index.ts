@@ -25,7 +25,7 @@ const cors = Cors({
 const form = formidable({
   multiples: true,
   keepExtensions: true,
-  uploadDir: `${process.cwd()}/tmp/uploads`, // Используем относительный путь
+  uploadDir: `${process.cwd()}/tmp/uploads`, 
   maxFileSize: 10 * 1024 * 1024, // 10MB
   filter: ({ mimetype }) => {
     return !!mimetype?.includes('image');
@@ -99,20 +99,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       for (const file of images) {
         try {
-          // Создаем уникальное имя файла
           const timestamp = Date.now();
           const randomString = Math.random().toString(36).substring(2, 8);
           const ext = file.originalFilename?.split('.').pop() || 'jpg';
           const filename = `${timestamp}-${randomString}.${ext}`;
           const newPath = `/uploads/reviews/${filename}`;
           
-          // Создаем директорию, если не существует
           await fs.mkdir(`${process.cwd()}/public/uploads/reviews`, { recursive: true });
           
-          // Копируем файл вместо перемещения
           await fs.copyFile(file.filepath, `${process.cwd()}/public${newPath}`);
           
-          // Удаляем временный файл после копирования
+          
           await fs.unlink(file.filepath).catch(console.error);
           
           imageUrls.push(newPath);
@@ -137,7 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
         console.error('Error creating review:', error);
         
-        // Безопасное извлечение сообщения об ошибке
+    
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
         return res.status(500).json({
