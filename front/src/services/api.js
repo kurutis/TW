@@ -49,24 +49,31 @@ const handleError = (error) => {
   }
 };
 
-api.interceptors.request.use(config => {
-  const token = document.cookie.split('; ').find(row => row.startsWith('authToken='))?.split('=')[1];
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+export const configureApi = (store) => {
+  api.interceptors.request.use(config => {
+    const token = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('authToken='))
+      ?.split('=')[1];
+      
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      config.withCredentials = true;
+    }
+    return config;
+  });
 
-api.interceptors.response.use(
+  api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
-            error.message = 'Требуется авторизация';
-        }
-        return Promise.reject(error);
+      if (error.response?.status === 401 && store) {
+        store.dispatch({ type: 'LOGOUT' });
+      }
+      return Promise.reject(error);
     }
-);
+  );
 
+};
 
 export const apiService = {
   auth: {
@@ -130,9 +137,40 @@ export const apiService = {
   
   reviews: {
     getAll: () => api.get('/reviews'),
-    create: (formData) => apiFormData.post('/reviews', formData),
+    create: async (formData) => {
+  try {
+    console.log('Sending review data:', formData);
+    const response = await api.post('/reviews', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      transformRequest: (data) => data,
+    });
+    console.log('Review created successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Full API Error:', error);
+    console.error('Response data:', error.response?.data);
+    throw {
+      status: error.response?.status || 500,
+      message: error.response?.data?.error || 'Network error',
+      data: error.response?.data
+    };
+  }
+},
     getByUser: (userId) => api.get(`/reviews/user/${userId}`),
-    update: (id, formData) => apiFormData.put(`/reviews/${id}`, formData),
+    update: async (id, formData) => {
+      try {
+        const response = await api.put(`/reviews/${id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        return response.data;
+      } catch (error) {
+        throw error.response?.data || error.message;
+      }
+    },
     delete: (id) => api.delete(`/reviews/${id}`)
   },
   
@@ -147,8 +185,20 @@ export const apiService = {
     },
     add: async (data) => {
       try {
-        const response = await api.post('/cart', data);
-        return response.data;
+        // Валидация перед отправкой
+        if (!data.productId || isNaN(data.productId)) {
+          throw { 
+            status: 400, 
+            message: 'Неверный ID товара' 
+          };
+        }
+
+        const response = await api.post('/cart', {
+          productId: Number(data.productId),
+          color: data.color,
+          quantity: Number(data.quantity) || 1
+        });
+        return response;
       } catch (error) {
         throw handleError(error);
       }

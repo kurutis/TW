@@ -14,13 +14,26 @@ export const fetchReviews = createAsyncThunk(
   }
 );
 
-export const addReview = (reviewData) => async (dispatch) => {
-  try {
-    const response = await apiService.reviews.create(reviewData);
-    dispatch({ type: 'ADD_REVIEW_SUCCESS', payload: response.data });
-    return response.data;
-  } catch (error) {
-    dispatch({ type: 'ADD_REVIEW_ERROR', payload: error.message });
-    throw error;
+export const addReview = createAsyncThunk(
+  'reviews/addReview',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await apiService.reviews.create(formData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
   }
-};
+);
+
+export const updateReview = createAsyncThunk(
+  'reviews/updateReview',
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      const response = await apiService.reviews.update(id, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);

@@ -19,9 +19,10 @@ export const Reviews = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
   useEffect(() => {
-    dispatch(fetchReviews());
-    return () => dispatch(resetReviewError());
-  }, [dispatch]);
+  console.log('Reviews in component:', reviews); // Лог текущих отзывов
+  dispatch(fetchReviews());
+  return () => dispatch(resetReviewError());
+}, [dispatch]);
 
   if (status === 'pending') return <div className={s.loading}>Загрузка отзывов...</div>;
   if (status === 'failed') return <div className={s.error}>Ошибка загрузки отзывов: {error}</div>;

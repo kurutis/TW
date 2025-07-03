@@ -16,7 +16,9 @@ export class CartService {
 async getCart(userId: number) {
   const client = await this.pool.connect();
   try {
+    // Добавляем логирование перед запросом
     console.log(`Fetching cart for user ${userId}`);
+    
     const { rows } = await client.query(`
       SELECT 
         ci.id,
@@ -25,7 +27,6 @@ async getCart(userId: number) {
         p.price,
         ci.quantity,
         ci.color as "selectedColor",
-        p.images,
         p.stock
       FROM cart_items ci
       JOIN products p ON ci.product_id = p.id
@@ -33,7 +34,8 @@ async getCart(userId: number) {
       ORDER BY ci.created_at DESC
     `, [userId]);
     
-    console.log(`Found ${rows.length} items in cart`);
+    console.log('Response from addToCart:', rows);
+    
     return rows;
   } catch (error) {
     console.error('Database error in getCart:', error);
@@ -44,55 +46,68 @@ async getCart(userId: number) {
 }
 
   async addToCart(userId: number, productId: number, color: string, quantity: number) {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      // Проверка наличия товара
-      const { rows: [product] } = await client.query(
-      `SELECT id, stock FROM products WHERE id = $1 FOR UPDATE`,
+    if (!productId || isNaN(productId) || productId <= 0) {
+    throw new Error('Неверный ID товара');
+  }
+  if (!userId || isNaN(userId)) {
+    throw new Error('Неверный ID пользователя');
+  }
+  const client = await this.pool.connect();
+  try {
+    console.log(`Starting transaction for user ${userId}, product ${productId}`);
+    await client.query('BEGIN');
+    
+    // Проверка наличия товара
+    const productCheck = await client.query(
+      'SELECT id FROM products WHERE id = $1',
       [productId]
     );
     
-      if (!product) {
-        throw new Error('Товар не найден');
-      }
+    if (productCheck.rows.length === 0) {
+      throw new Error(`Товар с ID ${productId} не найден`);
+    }
+    
+    const product = productCheck.rows[0];
 
-      // Проверяем существующий товар в корзине
-      const { rows: existing } = await client.query(
-        `SELECT id, quantity FROM cart_items 
-         WHERE user_id = $1 AND product_id = $2 AND color = $3`,
-        [userId, productId, color]
-      );
-      
-      let result;
-      if (existing.length > 0) {
-        const newQuantity = existing[0].quantity + quantity;
-        if (product.stock < newQuantity) {
-          throw new Error('Not enough stock');
-        }
-        
-        result = await client.query(
-          `UPDATE cart_items 
-           SET quantity = $1 
-           WHERE id = $2
-           RETURNING *`,
-          [newQuantity, existing[0].id]
-        );
-      } else {
-        result = await client.query(
-          `INSERT INTO cart_items 
-           (user_id, product_id, color, quantity)
-           VALUES ($1, $2, $3, $4)
-           RETURNING *`,
-          [userId, productId, color, quantity]
-        );
+    // Проверяем существующий товар в корзине
+    const existing = await client.query(
+      `SELECT id, quantity FROM cart_items 
+       WHERE user_id = $1 AND product_id = $2 AND color = $3`,
+      [userId, productId, color]
+    );
+    
+    let result;
+    if (existing.rows.length > 0) {
+      const newQuantity = existing.rows[0].quantity + quantity;
+      if (product.stock < newQuantity) {
+        throw new Error('Недостаточно товара на складе');
       }
       
-      await client.query('COMMIT');
+      result = await client.query(
+        `UPDATE cart_items 
+         SET quantity = $1 
+         WHERE id = $2
+         RETURNING *`,
+        [newQuantity, existing.rows[0].id]
+      );
+    } else {
+      if (product.stock < quantity) {
+        throw new Error('Недостаточно товара на складе');
+      }
       
-      // Получаем полные данные о продукте
-      const { rows: [item] } = await this.pool.query(`
+      result = await client.query(
+        `INSERT INTO cart_items 
+         (user_id, product_id, color, quantity)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [userId, productId, color, quantity]
+      );
+    }
+    
+    await client.query('COMMIT');
+    console.log(`Successfully added product ${productId} to cart for user ${userId}`);
+    
+    const { rows } = await client.query(`
         SELECT 
           ci.id,
           ci.product_id as "productId",
@@ -100,18 +115,19 @@ async getCart(userId: number) {
           p.price,
           ci.quantity,
           ci.color as "selectedColor",
-          p.images,
           p.stock
         FROM cart_items ci
         JOIN products p ON ci.product_id = p.id
-        WHERE ci.id = $1
-      `, [result.rows[0].id]);
+        WHERE ci.user_id = $1
+        ORDER BY ci.created_at DESC
+      `, [userId]);
       
-      return item;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    }  finally {
+  console.log('Response from addToCart:', rows);
+  return rows; 
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
     client.release();
   }
 }

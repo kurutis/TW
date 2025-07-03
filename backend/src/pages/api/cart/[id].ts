@@ -12,7 +12,7 @@ const cors = Cors({
     'http://localhost:5174',
     'https://trowool.com'
   ],
-  methods: ['GET', 'PUT', 'DELETE', 'OPTIONS'], // Добавлен GET для полноты
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
@@ -29,43 +29,77 @@ async function runMiddleware(req: NextApiRequest, res: NextApiResponse, fn: Func
   });
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     // Применяем CORS middleware
     await runMiddleware(req, res, cors);
     
     // Обрабатываем OPTIONS запрос
-    if (req.method === 'OPTIONS') {
-      return res.status(204).end();
-    }
+    if (req.method === 'OPTIONS') return res.status(204).end();
 
-    // Проверяем авторизацию с улучшенной обработкой ошибок
+    // Проверяем авторизацию
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.id) {
-      console.warn('Попытка доступа без авторизации', {
-        endpoint: '/api/cart',
-        method: req.method,
-        ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
-      });
-      return res.status(401).json({ 
-        error: 'Требуется авторизация',
-        code: 'UNAUTHORIZED'
-      });
+      return res.status(401).json({ error: 'Требуется авторизация' });
     }
 
-    // Валидация ID пользователя
-    const userId = parseInt(session.user.id);
-    if (isNaN(userId)) {
-      return res.status(400).json({ 
-        error: 'Некорректный ID пользователя',
-        code: 'INVALID_USER_ID'
-      });
-    }
-
+    const userId = Number(session.user.id);
     const cartService = new CartService(pool);
 
     // Обработка разных методов
     switch (req.method) {
+      case 'GET': {
+        const cartItems = await cartService.getCart(userId);
+        return res.status(200).json(cartItems);
+      }
+
+      case 'POST': {
+        const { productId, color, quantity = 1 } = req.body;
+        
+        // Строгая проверка ID товара
+        if (typeof productId !== 'number' || productId <= 0) {
+          return res.status(400).json({ 
+            error: 'Неверный ID товара',
+            details: 'ID должен быть положительным числом'
+          });
+        }
+
+        // Проверка quantity
+        const numQuantity = Number(quantity);
+        if (isNaN(numQuantity) || numQuantity < 1 || numQuantity > 100) {
+          return res.status(400).json({ 
+            error: 'Некорректное количество',
+            min: 1,
+            max: 100
+          });
+        }
+
+        try {
+          const item = await cartService.addToCart(
+            userId,
+            productId, // Уже проверенный number
+            color,
+            numQuantity
+          );
+          return res.status(200).json(item);
+        } catch (error) {
+          console.error('Error adding to cart:', error);
+          
+          // Безопасное извлечение сообщения об ошибке
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : 'Неизвестная ошибка при добавлении в корзину';
+          
+          return res.status(400).json({ 
+            error: errorMessage,
+            code: 'CART_ADD_ERROR'
+          });
+        }
+      }
+
       case 'PUT': {
         const itemId = parseInt(req.query.id as string);
         if (isNaN(itemId)) {
@@ -84,27 +118,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const updatedItem = await cartService.updateQuantity(userId, itemId, quantity);
-        return res.status(200).json({
-          success: true,
-          data: updatedItem
-        });
+        return res.status(200).json(updatedItem);
       }
 
       case 'DELETE': {
-        const itemId = parseInt(req.query.id as string);
-        if (isNaN(itemId)) {
-          return res.status(400).json({ 
-            error: 'Некорректный ID товара',
-            code: 'INVALID_ITEM_ID'
-          });
-        }
+        if (req.query.id) {
+          // Удаление конкретного товара
+          const itemId = parseInt(req.query.id as string);
+          if (isNaN(itemId)) {
+            return res.status(400).json({ 
+              error: 'Некорректный ID товара',
+              code: 'INVALID_ITEM_ID'
+            });
+          }
 
-        await cartService.removeFromCart(userId, itemId);
-        return res.status(204).end();
+          await cartService.removeFromCart(userId, itemId);
+          return res.status(204).end();
+        } else {
+          // Очистка всей корзины
+          await cartService.clearCart(userId);
+          return res.status(204).end();
+        }
       }
 
       default:
-        res.setHeader('Allow', ['PUT', 'DELETE', 'OPTIONS']);
+        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
         return res.status(405).json({ 
           error: `Метод ${req.method} не поддерживается`,
           code: 'METHOD_NOT_ALLOWED'
@@ -113,7 +151,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error('Ошибка обработки запроса корзины:', error);
     
-    // Улучшенная обработка ошибок
     if (error instanceof Error) {
       switch (true) {
         case error.message.includes('не найден'):

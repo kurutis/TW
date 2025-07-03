@@ -103,23 +103,24 @@ export const checkAuth = () => async (dispatch) => {
   
   try {
     const response = await apiService.auth.me();
-    const userData = response.user || response.data || response;
     
-    if (!userData) {
-      throw new Error('Данные пользователя не получены');
+    // Добавляем более строгую проверку ответа
+    if (!response?.user?.id) {
+      throw new Error('Invalid user data');
     }
 
     dispatch({
       type: 'AUTH_CHECK_SUCCESS',
-      payload: { user: userData }
+      payload: { user: response.user }
     });
     
-    return { isAuthenticated: true, user: userData };
+    return { isAuthenticated: true, user: response.user };
   } catch (error) {
-    dispatch({
-      type: 'AUTH_CHECK_FAILURE',
-      payload: getErrorMessage(error)
-    });
+    // Очищаем куки при неудачной проверке
+    document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    
+    dispatch({ type: 'AUTH_CHECK_FAILURE' });
     return { isAuthenticated: false };
   }
 };

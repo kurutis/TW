@@ -11,10 +11,10 @@ const cors = Cors({
     'http://localhost:5174',
     'https://trowool.com'
   ],
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
-  optionsSuccessStatus: 200,
+  optionsSuccessStatus: 204,
   exposedHeaders: ['Set-Cookie']
 });
 
@@ -39,12 +39,11 @@ export default async function handler(
     
     // Обрабатываем OPTIONS запрос
     if (req.method === 'OPTIONS') {
-      return res.status(200).end();
+      return res.status(204).end();
     }
 
-    // Проверка авторизации через middleware
-    const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
-      // Явная проверка наличия пользователя
+    // Обработчик запросов
+    const requestHandler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
       if (!req.user) {
         res.status(401).json({ error: 'User not authenticated' });
         return;
@@ -55,8 +54,8 @@ export default async function handler(
       switch (req.method) {
         case 'GET': {
           const cartItems = await cartService.getCart(req.user.userId);
-          res.status(200).json(cartItems);
-          return;
+          res.json(cartItems);
+          break;
         }
         
         case 'POST': {
@@ -79,29 +78,25 @@ export default async function handler(
             quantity
           );
           res.status(201).json(item);
-          return;
+          break;
         }
         
         case 'DELETE': {
           await cartService.clearCart(req.user.userId);
           res.status(204).end();
-          return;
+          break;
         }
         
         default:
           res.setHeader('Allow', ['GET', 'POST', 'DELETE', 'OPTIONS']);
           res.status(405).json({ error: 'Method not allowed' });
-          return;
       }
     };
 
-    return authenticate(req, res, handler);
+    return authenticate(req, res, requestHandler);
     
   } catch (error) {
-    console.error('Cart API error:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.error('API handler error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -1,44 +1,20 @@
-// actions/authMiddleware.js
 export const authMiddleware = store => next => action => {
-  const { type, payload } = action;
-  
-  // Очистка cookies при выходе
-  if (type === 'LOGOUT_SUCCESS') {
-    document.cookie = 'authToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    document.cookie = 'user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  // При успешной авторизации
+  if (action.type === 'LOGIN_SUCCESS' || action.type === 'REGISTER_SUCCESS') {
+    // Выполняем отложенные действия (например, добавление в корзину)
+    const pendingAction = localStorage.getItem('pendingAction');
+    if (pendingAction) {
+      const { type, payload } = JSON.parse(pendingAction);
+      store.dispatch({ type, payload });
+      localStorage.removeItem('pendingAction');
+    }
   }
   
-  // Обработка 401 ошибок
-  if (type.endsWith('REJECTED') && payload?.status === 401) {
-    store.dispatch({ type: 'LOGOUT' });
-    store.dispatch({
-      type: 'SHOW_AUTH_MODAL',
-      payload: {
-        message: 'Сессия истекла. Пожалуйста, войдите снова',
-        callback: {
-          type: 'SESSION_EXPIRED_CALLBACK'
-        }
-      }
-    });
-  }
-  
-  // Преобразование callback для SHOW_AUTH_MODAL
-  if (type === 'SHOW_AUTH_MODAL' && payload?.callback) {
-    const callbackAction = {
-      type: 'HANDLE_AUTH_CALLBACK',
-      payload: {
-        actionType: payload.callback.type || 'DEFAULT_CALLBACK',
-        modalMessage: payload.message
-      }
-    };
-    
-    return next({
-      ...action,
-      payload: {
-        ...payload,
-        callback: callbackAction
-      }
-    });
+  // При разлогине очищаем всё
+  if (action.type === 'LOGOUT') {
+    document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    localStorage.removeItem('pendingAction');
   }
   
   return next(action);

@@ -1,6 +1,16 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { apiService } from '../services/api';
 
+
+const initialState = {
+  items: [],
+  loading: 'idle',
+  error: null,
+  lastAdded: null,
+  addStatus: 'idle'
+};
+
+
 // Асинхронные действия
 export const fetchReviews = createAsyncThunk(
   'reviews/fetchReviews',
@@ -26,14 +36,6 @@ export const addReview = createAsyncThunk(
   }
 );
 
-const initialState = {
-  items: [],
-  loading: 'idle',
-  error: null,
-  lastAdded: null,
-  addStatus: 'idle'
-};
-
 const reviewSlice = createSlice({
   name: 'reviews',
   initialState,
@@ -52,12 +54,14 @@ const reviewSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchReviews.fulfilled, (state, action) => {
-        state.loading = 'succeeded';
-        state.items = action.payload;
-      })
+      state.loading = 'succeeded';
+      state.items = action.payload.data || [];
+      console.log('Reviews loaded:', action.payload.data);
+    })
       .addCase(fetchReviews.rejected, (state, action) => {
         state.loading = 'failed';
         state.error = action.payload;
+        console.error('Failed to load reviews:', action.payload);
       })
       .addCase(addReview.pending, (state) => {
         state.addStatus = 'pending';

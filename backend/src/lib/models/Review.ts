@@ -15,30 +15,31 @@ export class ReviewModel {
   constructor(private pool: Pool) {}
 
   async getAllReviews(): Promise<Review[]> {
-    const client = await this.pool.connect();
-    try {
-      const result: QueryResult<Review> = await client.query(`
-        SELECT 
-          sr.*,
-          u.full_name as user_name,
-          u.nickname as user_nickname
-        FROM service_reviews sr
-        LEFT JOIN users u ON sr.user_id = u.id
-        ORDER BY sr.created_at DESC
-      `);
-      return result.rows;
-    } catch (error) {
-      console.error('Ошибка при получении отзывов:', error);
-      throw new Error('Не удалось загрузить отзывы');
-    } finally {
-      client.release();
-    }
-  }
-
-  async createReview(userId: number, rating: number, text: string, images: string[] = []): Promise<Review> {
   const client = await this.pool.connect();
   try {
-    // Проверка существующего отзыва
+    const result: QueryResult<Review> = await client.query(`
+      SELECT 
+        sr.*,
+        u.full_name as user_name,
+        u.nickname as user_nickname
+      FROM service_reviews sr
+      LEFT JOIN users u ON sr.user_id = u.id
+      ORDER BY sr.created_at DESC
+    `);
+    console.log('DB Result:', result.rows);
+    return result.rows;
+  } catch (error) {
+    console.error('Ошибка при получении отзывов:', error);
+    throw new Error('Не удалось загрузить отзывы');
+  } finally {
+    client.release();
+  }
+}
+
+ async createReview(userId: number, rating: number, text: string, images: string[] = []): Promise<Review> {
+  const client = await this.pool.connect();
+  try {
+    
     const existing = await client.query(
       `SELECT id FROM service_reviews WHERE user_id = $1`,
       [userId]
@@ -55,17 +56,22 @@ export class ReviewModel {
       [userId, rating, text, images]
     );
 
-    // Получаем данные пользователя
+
     const userResult = await client.query(
       `SELECT full_name, avatar_url FROM users WHERE id = $1`,
       [userId]
     );
 
-    return {
+    const review = {
       ...result.rows[0],
       user_name: userResult.rows[0]?.full_name || 'Anonymous',
       user_avatar: userResult.rows[0]?.avatar_url || null
     };
+
+    return review;
+  } catch (error) {
+    console.error('Error in createReview:', error);
+    throw error;
   } finally {
     client.release();
   }

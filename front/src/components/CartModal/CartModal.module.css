@@ -31,6 +31,7 @@
     border-radius: 5px;
     width: 40vw;
     position: relative;
+    font-size: 16px;
 }
 
 .cartItem {
@@ -38,11 +39,31 @@
     justify-content: space-between; 
     align-items: center; 
     padding: 10px 0; 
-    border-bottom: 1px solid #404040; 
+    border-bottom: 1px solid #bdbdbd; 
 }
 
 .cartItem:last-child {
     border-bottom: none; 
+}
+
+.plus{
+    border: none;
+    background-color: #BC354F;
+    color: #f9f9f9;
+}
+
+.minus{
+    border: none;
+    background-color:transparent;
+    color: #404040;
+}
+
+.minus, .plus{
+    font-weight: 700;
+    font-size: 18px;
+    font-family: "Montserrat Alternates", sans-serif;
+    border-radius: 10px;
+    cursor: pointer;
 }
 
 .close_button {
@@ -67,12 +88,21 @@
     cursor: pointer;
 }
 
-.delete_btn{
+.delete_btn, .clear{
     border: 1px solid #BC354F;
     background-color: transparent;
     padding: 5px;
     border-radius: 5px;
     color: #BC354F;
+    cursor: pointer;
+}
+
+.checkout{
+    border: none;
+    background-color: #BC354F;
+    color: #f9f9f9;
+    padding: 5px;
+    border-radius: 5px;
     cursor: pointer;
 }
 
@@ -84,8 +114,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
     gap: 5px;
+    margin-top: 20px;
 }
 
 .color{

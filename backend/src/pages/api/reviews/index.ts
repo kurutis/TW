@@ -18,8 +18,9 @@ const cors = Cors({
     'http://localhost:5174',
     'https://trowool.com'
   ],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'],
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']
 });
 
 const form = formidable({
@@ -76,15 +77,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       case 'POST':
   try {
+    console.log('Processing review submission...');
     const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve([fields, files]);
+        if (err) {
+          console.error('Form parse error:', err);
+          reject(err);
+        } else {
+          console.log('Parsed fields:', fields);
+          console.log('Parsed files:', files);
+          resolve([fields, files]);
+        }
       });
     });
 
     // Валидация
     if (!fields.userId || !fields.rating || !fields.text) {
+      console.error('Missing fields:', { userId: fields.userId, rating: fields.rating, text: fields.text });
       if (files.images) await handleFileCleanup(files);
       return res.status(400).json({ 
         success: false,

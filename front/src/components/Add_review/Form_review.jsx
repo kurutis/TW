@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectUser } from '../../actions/authSelectors';
+import { apiService } from '../../services/api'; // Добавлен импорт
 import s from './Form_review.module.css';
 import { 
   resetAddStatus, 
   resetReviewError,
   selectAddReviewStatus,
-  selectReviewError 
+  selectReviewError,
+  selectAllReviews
 } from '../../reducers/review';
-import { addReview } from '../../actions/review';
+import { addReview, updateReview } from '../../actions/review';
 import { AutoResizeTextarea } from '../AutoResazeTextarea/AutoresizeTextarea';
 import paperClip from '../../assets/paperclip.svg';
 import go from '../../assets/go.svg';
@@ -19,14 +21,14 @@ export const ReviewForm = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const addStatus = useSelector(selectAddReviewStatus);
   const error = useSelector(selectReviewError);
-  
+  const reviews = useSelector(selectAllReviews) || [];
+
   const [formData, setFormData] = useState({
     rating: 5,
     text: ''
   });
   const [images, setImages] = useState([]);
 
-  // Сброс статуса при размонтировании
   useEffect(() => {
     return () => {
       dispatch(resetAddStatus());
@@ -34,7 +36,6 @@ export const ReviewForm = () => {
     };
   }, [dispatch]);
 
-  // Обработка успешного добавления
   useEffect(() => {
     if (addStatus === 'succeeded') {
       setFormData({ rating: 5, text: '' });
@@ -55,61 +56,76 @@ export const ReviewForm = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user?.id) return;
+  e.preventDefault();
+  if (!user?.id) {
+    console.error('User ID is missing');
+    return;
+  }
 
-    try {
-      // Проверяем, есть ли уже отзыв от пользователя
-      const existingReview = reviews.find(r => r.user_id === user.id);
-      
-      const fd = new FormData();
-      fd.append('rating', formData.rating.toString());
-      fd.append('text', formData.text.trim());
-      fd.append('userId', user.id.toString());
+  try {
+    const fd = new FormData();
+    fd.append('rating', formData.rating.toString());
+    fd.append('text', formData.text.trim());
+    fd.append('userId', user.id.toString());
 
-      images.forEach(file => fd.append('images', file));
-
-      if (existingReview) {
-        // Обновляем существующий отзыв
-        await dispatch(updateReview({ 
-          id: existingReview.id, 
-          data: fd 
-        }));
-        alert('Ваш отзыв успешно обновлен!');
-      } else {
-        // Создаем новый отзыв
-        await dispatch(addReview(fd));
-        alert('Спасибо за ваш отзыв!');
-      }
-    } catch (error) {
-      console.error('Ошибка:', error);
-      setError(error.message);
+    console.log('FormData content:');
+    for (let [key, value] of fd.entries()) {
+      console.log(key, value);
     }
-  };
+
+    // Валидация изображений
+    if (images.length > 5) {
+      throw new Error('Максимум 5 изображений');
+    }
+
+    images.forEach(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error(`Файл ${file.name} слишком большой (макс. 10MB)`);
+      }
+      fd.append('images', file, file.name);
+    });
+
+    console.log('Submitting review...');
+    const response = await apiService.reviews.create(fd);
+    console.log('Server response:', response);
+    
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    dispatch(addReview(response));
+    setFormData({ rating: 5, text: '' });
+    setImages([]);
+
+  } catch (error) {
+    console.error('Ошибка при отправке отзыва:', error);
+    dispatch(resetReviewError(error.message || 'Ошибка при отправке отзыва'));
+  }
+};
 
   return (
     <form onSubmit={handleSubmit} className={s.review_form}>
-      {addStatus === 'failed' && error && (
+      {error && (
         <div className={s.error}>{error}</div>
       )}
 
       {addStatus === 'succeeded' && (
         <div className={s.success}>Отзыв успешно добавлен!</div>
       )}
-        <AutoResizeTextarea
-          id="text"
-          name="text"
-          value={formData.text}
-          onChange={handleInputChange}
-          required
-          minLength={10}
-          disabled={addStatus === 'pending'}
-          className = {s.textarea}
-          placeholder="Оставьте ваш отзыв!"
-        />
-        <div className={s.else}>
-          <select
-          id="rating"
+      
+      <AutoResizeTextarea
+        name="text"
+        value={formData.text}
+        onChange={handleInputChange}
+        required
+        minLength={10}
+        disabled={addStatus === 'pending'}
+        className={s.textarea}
+        placeholder="Оставьте ваш отзыв!"
+      />
+      
+      <div className={s.else}>
+        <select
           name="rating"
           value={formData.rating}
           onChange={handleInputChange}
@@ -121,19 +137,21 @@ export const ReviewForm = () => {
             </option>
           ))}
         </select>
+        
         <label htmlFor="file-upload" className={s.custom_file_upload}>
-              <img className={s.label_img} src={paperClip} alt="Прикрепить файл" />
-          </label>
+          <img className={s.label_img} src={paperClip} alt="Прикрепить файл" />
+        </label>
+        
         <input
           type="file"
-          id="images"
+          id="file-upload"
           multiple
           accept="image/*"
           onChange={handleImageChange}
           disabled={addStatus === 'pending'}
-          max={5}
           style={{ display: 'none' }}
         />
+        
         {images.length > 0 && (
           <div className={s.filesInfo}>
             Выбрано файлов: {images.length}
@@ -146,15 +164,15 @@ export const ReviewForm = () => {
             </button>
           </div>
         )}
-
-      <button 
-        type="submit" 
-        disabled={addStatus === 'pending'}
-        className={s.submitButton}
-      >
-        <img src={go} alt="Отправить" />
-      </button>
-        </div>
+        
+        <button 
+          type="submit" 
+          disabled={addStatus === 'pending'}
+          className={s.submitButton}
+        >
+          {addStatus === 'pending' ? 'Отправка...' : <img src={go} alt="Отправить" />}
+        </button>
+      </div>
     </form>
   );
 };

@@ -1,13 +1,21 @@
-import { createAsyncThunk, createSlice, isRejected, isPending, isFulfilled } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { apiService } from '../services/api';
 
 const initialState = {
-  items: [],
+  items: [], 
   status: 'idle',
   error: null,
-  isLoading: false,
   authError: false,
-  shouldLogout: false
+  shouldLogout: false,
+  lastUpdated: null
+};
+
+const checkAuth = (getState) => {
+  const state = getState();
+  return {
+    isAuthenticated: state.auth?.isAuthenticated || false,
+    userId: state.auth?.user?.id || null
+  };
 };
 
 // Вспомогательная функция для обработки ошибок
@@ -24,24 +32,46 @@ const getErrorPayload = (error) => {
 export const fetchCart = createAsyncThunk(
   'cart/fetchCart',
   async (_, { getState, rejectWithValue }) => {
-    const { auth } = getState();
-    
-    if (!auth?.isAuthenticated) {
-      return rejectWithValue({
-        message: 'Требуется авторизация',
-        status: 401,
-        shouldLogout: false
-      });
-    }
-
     try {
+      // Правильное получение состояния
+      const state = getState();
+      
+      // Исправленная функция checkAuth
+      const checkAuth = (state) => {
+        return {
+          isAuthenticated: state.auth?.isAuthenticated || false,
+          userId: state.auth?.user?.id || null
+        };
+      };
+      
+      const { isAuthenticated, userId } = checkAuth(state);
+      
+      if (!isAuthenticated || !userId) {
+        // Возвращаем текущую корзину вместо пустого массива
+        return state.cart?.items || []; 
+      }
+      
+      // Логика загрузки только при необходимости
+      if (state.cart.status === 'succeeded' && state.cart.items?.length > 0) {
+        return state.cart.items;
+      }
+      
       const response = await apiService.cart.get();
+      
+      // Проверка ответа сервера
+      if (!response.data) {
+        console.error('Сервер вернул пустые данные корзины');
+        return state.cart?.items || [];
+      }
+      
       return response.data;
+      
     } catch (error) {
+      console.error('Ошибка загрузки корзины:', error);
+      // Возвращаем текущее состояние корзины при ошибке
       return rejectWithValue({
-        message: error.response?.data?.error || error.message,
-        status: error.response?.status,
-        shouldLogout: error.response?.status === 401
+        ...getErrorPayload(error),
+        currentItems: getState().cart?.items || []
       });
     }
   }
@@ -50,23 +80,16 @@ export const fetchCart = createAsyncThunk(
 // Thunk для добавления в корзину
 export const addToCart = createAsyncThunk(
   'cart/addToCart',
-  async ({ productId, color, quantity }, { getState, rejectWithValue }) => {
-    const { auth } = getState();
-    
-    // Синхронная проверка авторизации
-    if (!auth?.isAuthenticated) {
-      return rejectWithValue({
-        message: 'Требуется авторизация',
-        status: 401,
-        shouldLogout: false // Не разлогинивать, просто показать модалку
-      });
-    }
-
+  async ({ productId, color, quantity }, { rejectWithValue }) => {
     try {
-      const response = await apiService.cart.add({ productId, color, quantity });
+      const response = await apiService.cart.add({
+        productId: Number(productId),
+        color,
+        quantity: Number(quantity)
+      });
+      
       return response.data;
     } catch (error) {
-      // Ошибка API
       return rejectWithValue({
         message: error.response?.data?.error || error.message,
         status: error.response?.status,
@@ -75,6 +98,7 @@ export const addToCart = createAsyncThunk(
     }
   }
 );
+
 
 // Thunk для обновления количества товара
 export const updateCartItem = createAsyncThunk(
@@ -90,10 +114,6 @@ export const updateCartItem = createAsyncThunk(
 
       if (quantity <= 0) {
         throw new Error('Количество должно быть больше 0');
-      }
-
-      if (quantity > item.stock) {
-        throw new Error(`Максимальное количество: ${item.stock}`);
       }
 
       const response = await apiService.cart.update(itemId, { quantity });
@@ -123,19 +143,7 @@ export const clearCart = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await apiService.cart.clear();
-    } catch (error) {
-      return rejectWithValue(getErrorPayload(error));
-    }
-  }
-);
-
-// Thunk для оформления заказа
-export const checkout = createAsyncThunk(
-  'cart/checkout',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const { cart } = getState();
-      await apiService.orders.create({ items: cart.items });
+      return [];
     } catch (error) {
       return rejectWithValue(getErrorPayload(error));
     }
@@ -146,99 +154,131 @@ const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    setError: (state, action) => {
-      state.error = action.payload;
-    },
-    resetError: (state) => {
+    resetCart: (state) => {
+      state.items = [];
+      state.status = 'idle';
       state.error = null;
-      state.authError = false;
+      state.lastUpdated = Date.now();
     },
-    resetCart: () => initialState,
-    incrementItem: (state, action) => {
-      const item = state.items.find(item => item.id === action.payload);
-      if (item) item.quantity += 1;
-    },
-    decrementItem: (state, action) => {
-      const item = state.items.find(item => item.id === action.payload);
-      if (item && item.quantity > 1) item.quantity -= 1;
+    setAuthError: (state, action) => {
+      state.authError = action.payload;
     }
   },
   extraReducers: (builder) => {
     builder
+      // Обработка fetchCart
+      .addCase(fetchCart.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
       .addCase(fetchCart.fulfilled, (state, action) => {
+        state.status = 'succeeded';
         state.items = action.payload;
         state.lastUpdated = Date.now();
       })
+      .addCase(fetchCart.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload.message;
+        if (action.payload.status === 401) {
+          state.authError = true;
+          state.shouldLogout = action.payload.shouldLogout;
+        }
+      })
+
+      // Обработка addToCart (единственный обработчик для этого действия)
+      .addCase(addToCart.pending, (state) => {
+        state.status = 'loading';
+      })
       .addCase(addToCart.fulfilled, (state, action) => {
-        const existingIndex = state.items.findIndex(
-          item => item.productId === action.payload.productId && 
-                item.selectedColor === action.payload.selectedColor
-        );
+        state.status = 'succeeded';
         
-        if (existingIndex >= 0) {
-          state.items[existingIndex].quantity += action.payload.quantity;
-        } else {
-          state.items.push({
-            ...action.payload,
-            images: action.payload.images || ['/placeholder.jpg'],
-            stock: action.payload.stock || 10
-          });
+        // Если сервер возвращает обновленный список
+        if (Array.isArray(action.payload)) {
+          state.items = action.payload;
+        } 
+        // Если сервер возвращает только добавленный товар
+        else {
+          const existingIndex = state.items.findIndex(item => 
+            item.productId === action.payload.productId && 
+            item.selectedColor === action.payload.selectedColor
+          );
+          
+          if (existingIndex >= 0) {
+            state.items[existingIndex].quantity += action.payload.quantity;
+          } else {
+            state.items.push(action.payload);
+          }
+        }
+        
+        state.lastUpdated = Date.now();
+      })
+      .addCase(addToCart.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+
+      // Обработка updateCartItem (исправленный - без дублирования addToCart.fulfilled)
+      .addCase(updateCartItem.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(updateCartItem.fulfilled, (state, action) => {  // Исправлено на updateCartItem.fulfilled
+        state.status = 'succeeded';
+        const index = state.items.findIndex(item => item.id === action.payload.id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
         }
         state.lastUpdated = Date.now();
       })
-      .addCase(updateCartItem.fulfilled, (state, action) => {
-        const index = state.items.findIndex(item => item.id === action.payload.id);
-        if (index >= 0) {
-          state.items[index] = action.payload;
-          state.lastUpdated = Date.now();
-        }
+      .addCase(updateCartItem.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload.message;
+      })
+
+      // Остальные обработчики остаются без изменений
+      .addCase(removeFromCart.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
       })
       .addCase(removeFromCart.fulfilled, (state, action) => {
+        state.status = 'succeeded';
         state.items = state.items.filter(item => item.id !== action.payload);
         state.lastUpdated = Date.now();
       })
-      .addCase(clearCart.fulfilled, (state) => {
-        state.items = [];
-        state.lastUpdated = Date.now();
+      .addCase(removeFromCart.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload.message;
       })
-      .addCase(checkout.fulfilled, (state) => {
-        state.items = [];
-        state.lastUpdated = Date.now();
-      })
-      .addMatcher(isPending, (state) => {
+      .addCase(clearCart.pending, (state) => {
         state.status = 'loading';
-        state.isLoading = true;
         state.error = null;
       })
-      .addMatcher(isFulfilled, (state) => {
-        state.status = 'succeeded';
-        state.isLoading = false;
-      })
-      .addMatcher(
-        isRejected,
-        (state, action) => {
-          state.status = 'failed';
-          state.isLoading = false;
-          
-          if (action.payload) {
-            state.error = action.payload.message;
-            
-            if (action.payload.status === 401) {
-              state.authError = true;
-              state.shouldLogout = action.payload.shouldLogout;
-            }
-          }
+      .addCase(clearCart.fulfilled, (state, action) => {
+        if (action.payload?.force !== true) {
+          console.warn('Предотвращена попытка очистки корзины без флага force');
+          return;
         }
-      );
-}
+        state.status = 'succeeded';
+        state.items = [];
+        state.lastUpdated = Date.now();
+      })
+      .addCase(clearCart.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload.message;
+      });
+  }
 });
 
-export const { 
-  setError, 
-  resetError, 
-  resetCart,
-  incrementItem,
-  decrementItem 
-} = cartSlice.actions;
+export const { resetCart, setAuthError } = cartSlice.actions;
+
+export const selectCartItems = (state) => state.cart.items; 
+export const selectCartStatus = (state) => state.cart?.status || 'idle';
+export const selectCartError = (state) => state.cart?.error || null;
+export const selectCartTotal = (state) => {
+  const items = state.cart?.items || [];
+  return items.reduce((total, item) => {
+    return total + ((item?.price || 0) * (item?.quantity || 0));
+  }, 0);
+};
 
 export default cartSlice.reducer;

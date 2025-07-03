@@ -42,41 +42,59 @@ const ProductDetail = () => {
   }, [id]);
 
   const handleAddToCartClick = () => {
-    if (!isAuthenticated) {
-      dispatch(showAuthModal({
-        message: 'Для добавления товара в корзину требуется авторизация'
-      }));
-      return;
-    }
-    setIsModalOpen(true);
-  };
-
-   const handleAddToCart = async (quantity, selectedColor) => {
-  try {
-    const result = await dispatch(addToCart({
-      productId: product.id,
-      quantity,
-      color: selectedColor,
-    })).unwrap();
-    
-    return result;
-  } catch (error) {
-    if (error?.status === 401) {
-      throw {
-        ...error,
-        message: error.shouldLogout 
-          ? 'Сессия истекла. Пожалуйста, войдите снова'
-          : 'Требуется авторизация'
-      };
-    }
-    throw error;
+  if (!product || !product.id) {
+    console.error('Product ID is missing');
+    return;
   }
+
+  if (!isAuthenticated) {
+    dispatch(showAuthModal({
+      message: 'Для добавления товара в корзину требуется авторизация',
+      callback: {
+        type: 'AFTER_LOGIN_ADD_TO_CART',
+        payload: { 
+          productId: product.id,
+          color: product.colors?.[selectedColorIndex] 
+        }
+      }
+    }));
+    return;
+  }
+  setIsModalOpen(true);
 };
+
+  const handleAddToCart = async (quantity, selectedColor) => {
+    try {
+      if (!product?.id) {
+        throw new Error('Не указан ID товара');
+      }
+
+      const result = await dispatch(addToCart({
+        productId: Number(product.id),
+        quantity: Number(quantity),  
+        color: selectedColor,
+      })).unwrap();
+      
+      return result;
+    } catch (error) {
+      if (error?.status === 401) {
+        throw {
+          ...error,
+          message: error.shouldLogout 
+            ? 'Сессия истекла. Пожалуйста, войдите снова'
+            : 'Требуется авторизация'
+        };
+      }
+      throw error;
+    }
+  };
 
 
   if (loading) return <div className={s.container}>Загрузка...</div>;
   if (error) return <div className={s.container}>{error}</div>;
   if (!product) return <div className={s.container}>Товар не найден</div>;
+  
+  
 
   return (
     <div className={s.container}>
@@ -140,6 +158,7 @@ const ProductDetail = () => {
       
       {isModalOpen && (
         <QuantityModal
+          productId={product.id}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleAddToCart}

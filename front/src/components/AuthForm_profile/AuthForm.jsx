@@ -135,7 +135,6 @@ export const AuthForm = ({ onSuccess, initialFormType = 'login' }) => {
           </div>
           
           <div className={s.form_group}>
-            <label>Телефон</label>
             <input
               type="tel"
               value={phone}

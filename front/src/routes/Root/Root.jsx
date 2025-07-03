@@ -54,6 +54,16 @@ export const Root = () => {
         dispatch(setAuthError(null));
     };
 
+    useEffect(() => {
+    const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('authToken='));
+        
+    if (token && !isAuthenticated) {
+        dispatch(checkAuth());
+    }
+    }, [dispatch, isAuthenticated]);
+
 
     const handleAuthSuccess = useCallback(() => {
         setIsModalOpen(false);
